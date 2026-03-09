@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarkdownFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="./node_modules/marked/lib/marked.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0e0d0c;
+  --surface:   #151412;
+  --surface2:  #1c1a18;
+  --surface3:  #232120;
+  --border:    #2a2826;
+  --border2:   #333130;
+  --text:      #e2dbd0;
+  --text-dim:  #7a756e;
+  --text-faint:#3e3b38;
+  --accent:    #c8a96d;
+  --accent2:   #7fbfa8;
+  --accent-bg: rgba(200,169,109,0.07);
+  --agent-bg:  rgba(127,191,168,0.07);
+  --red:       #d4736a;
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Lora', Georgia, serif;
+}
+
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
+
+/* ── TITLEBAR ── */
+.titlebar {
+  height: 38px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 10px 0 14px;
+  flex-shrink: 0; position: relative;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.titlebar-traffic {
+  display: flex; gap: 7px; margin-right: 14px;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+.titlebar-traffic.macos-native { width: 68px; pointer-events: none; }
+.traffic-dot { width: 11px; height: 11px; border-radius: 50%; cursor: pointer; transition: opacity .15s; flex-shrink: 0; }
+.dot-close { background: #e05a4e; } .dot-min { background: #e0b84e; } .dot-max { background: #56c354; }
+.traffic-dot:hover { opacity: .7; }
+
+.titlebar-center {
+  font-size: 11px; color: var(--text-dim); letter-spacing: .03em;
+  position: absolute; left: 50%; transform: translateX(-50%);
+  pointer-events: none; white-space: nowrap;
+  display: flex; align-items: center; gap: 0;
+}
+.titlebar-dir   { color: var(--text-dim); }
+.titlebar-fname { color: var(--text); }
+.titlebar-dot   { color: var(--accent); margin-left: 5px; display: none; }
+.titlebar-dot.show { display: inline; }
+
+.titlebar-actions {
+  display: flex; gap: 2px; margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+.tb-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); padding: 4px 8px;
+  border-radius: 4px; font-family: var(--mono); font-size: 11px;
+  letter-spacing: .02em; transition: color .15s, background .15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.tb-btn:hover { color: var(--text); background: var(--surface3); }
+.tb-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.tb-btn.accent { color: var(--accent); }
+.tb-btn.accent:hover { background: var(--accent-bg); }
+
+/* Windows custom close buttons */
+.win-controls { display: none; gap: 0; margin-left: 4px; -webkit-app-region: no-drag; }
+.win-btn { background: none; border: none; cursor: pointer; color: var(--text-dim); padding: 0 12px; height: 38px; font-size: 13px; transition: background .1s; }
+.win-btn:hover { background: var(--surface3); color: var(--text); }
+.win-btn.close:hover { background: #c42b1c; color: #fff; }
+
+/* ── LAYOUT ── */
+.app { display: flex; height: calc(100vh - 38px); overflow: hidden; }
+
+/* ── FILE PANEL ── */
+.file-panel {
+  width: 220px; background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width .22s cubic-bezier(.4,0,.2,1), opacity .18s;
+  overflow: hidden; flex-shrink: 0;
+}
+.file-panel.collapsed { width: 0; opacity: 0; pointer-events: none; }
+
+.panel-header {
+  padding: 13px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-title { font-size: 10px; font-weight: 500; color: var(--text-dim); letter-spacing: .12em; text-transform: uppercase; }
+
+.file-tree { flex: 1; overflow-y: auto; padding: 4px 0 12px; }
+.file-tree::-webkit-scrollbar { width: 3px; }
+.file-tree::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.tree-group-label {
+  font-size: 9.5px; color: var(--text-faint);
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 10px 14px 3px;
+  display: flex; align-items: center; gap: 6px;
+}
+.tree-group-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.tree-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 14px; cursor: pointer;
+  color: var(--text-dim); font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 2px solid transparent;
+  transition: background .1s, color .1s;
+}
+.tree-item:hover { background: var(--surface2); color: var(--text); }
+.tree-item.active { background: var(--accent-bg); color: var(--accent); border-left-color: var(--accent); }
+.tree-item svg { width: 11px; height: 11px; flex-shrink: 0; opacity: .5; }
+.tree-item.active svg { opacity: 1; }
+.tree-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+.tree-tag {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 8px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 2px;
+}
+.tree-tag.skill { background: rgba(200,169,109,.1); color: var(--accent); }
+.tree-tag.agent { background: rgba(127,191,168,.1); color: var(--accent2); }
+
+.tree-empty { font-size: 11px; color: var(--text-faint); padding: 8px 14px; font-style: italic; }
+
+/* ── EDITOR AREA ── */
+.editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; min-width: 0; }
+
+.editor-meta {
+  padding: 9px 28px 0;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.editor-path { font-size: 10px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.editor-path span { color: var(--text-dim); }
+
+.trigger-legend { display: flex; gap: 10px; margin-left: 10px; flex-shrink: 0; }
+.legend-item { font-size: 10px; display: flex; align-items: center; gap: 4px; color: var(--text-faint); }
+.legend-key { font-size: 11px; font-weight: 500; padding: 0px 4px; border-radius: 3px; }
+.legend-key.skill { color: var(--accent); background: var(--accent-bg); }
+.legend-key.agent { color: var(--accent2); background: var(--agent-bg); }
+
+.mode-toggle {
+  margin-left: auto; display: flex; flex-shrink: 0;
+  background: var(--surface2); border-radius: 5px; padding: 2px; gap: 1px;
+}
+.mode-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-dim); padding: 3px 10px; border-radius: 3px;
+  letter-spacing: .05em; transition: all .15s;
+}
+.mode-btn.active { background: var(--surface3); color: var(--text); }
+.mode-btn:hover:not(.active) { color: var(--text); }
+
+.font-size-toggle {
+  display: flex; flex-shrink: 0; margin-left: 6px;
+  background: var(--surface2); border-radius: 5px; padding: 2px; gap: 1px;
+}
+.fs-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-dim); padding: 3px 8px; border-radius: 3px;
+  letter-spacing: .05em; transition: all .15s;
+}
+.fs-btn.active { background: var(--surface3); color: var(--text); }
+.fs-btn:hover:not(.active) { color: var(--text); }
+
+/* ── FONT SIZE SCALES ── */
+body.fs-medium textarea#editor { font-size: 17px; }
+body.fs-medium .preview-pane h1 { font-size: 31px; }
+body.fs-medium .preview-pane h2 { font-size: 24px; }
+body.fs-medium .preview-pane h3 { font-size: 19px; }
+body.fs-medium .preview-pane h4 { font-size: 17px; }
+body.fs-medium .preview-pane p  { font-size: 17px; }
+body.fs-medium .preview-pane ul, body.fs-medium .preview-pane ol { font-size: 17px; }
+body.fs-medium .preview-pane code { font-size: 14px; }
+body.fs-medium .preview-pane pre code { font-size: 16px; }
+body.fs-medium .preview-pane table { font-size: 15px; }
+
+body.fs-large textarea#editor { font-size: 20px; }
+body.fs-large .preview-pane h1 { font-size: 37px; }
+body.fs-large .preview-pane h2 { font-size: 29px; }
+body.fs-large .preview-pane h3 { font-size: 23px; }
+body.fs-large .preview-pane h4 { font-size: 20px; }
+body.fs-large .preview-pane p  { font-size: 20px; }
+body.fs-large .preview-pane ul, body.fs-large .preview-pane ol { font-size: 20px; }
+body.fs-large .preview-pane code { font-size: 17px; }
+body.fs-large .preview-pane pre code { font-size: 19px; }
+body.fs-large .preview-pane table { font-size: 18px; }
+
+.editor-body { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+.editor-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+textarea#editor {
+  flex: 1; background: transparent; border: none; outline: none; resize: none;
+  color: var(--text); font-family: var(--mono); font-size: 14px;
+  line-height: 1.8; padding: 20px 28px 80px;
+  caret-color: var(--accent); letter-spacing: .01em;
+  tab-size: 2;
+}
+textarea#editor::selection { background: rgba(200,169,109,.18); }
+textarea#editor::placeholder { color: var(--text-faint); }
+
+/* ── SUGGESTION POPUP ── */
+.suggest-popup {
+  position: absolute;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.55);
+  overflow: hidden; z-index: 100;
+  min-width: 280px; max-width: 380px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s, transform .12s;
+  transform: translateY(4px);
+}
+.suggest-popup.visible { opacity: 1; pointer-events: all; transform: translateY(0); }
+
+.suggest-header {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.suggest-trigger-badge {
+  font-size: 12px; font-weight: 500;
+  padding: 1px 6px; border-radius: 3px; line-height: 1.4;
+}
+.suggest-trigger-badge.skill { background: var(--accent-bg); color: var(--accent); }
+.suggest-trigger-badge.agent { background: var(--agent-bg); color: var(--accent2); }
+.suggest-header-label { font-size: 10px; color: var(--text-faint); }
+.suggest-query-text { color: var(--text-dim); }
+
+.suggest-item {
+  padding: 7px 12px; cursor: pointer;
+  display: flex; align-items: center; gap: 9px;
+  transition: background .08s; font-size: 12px;
+  border-left: 2px solid transparent;
+}
+.suggest-item:hover { background: var(--surface3); }
+.suggest-item.active { background: var(--surface3); border-left-color: var(--accent); }
+.suggest-item.active.agent-mode { border-left-color: var(--accent2); }
+
+.suggest-icon {
+  width: 22px; height: 22px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 10px;
+}
+.suggest-icon.skill { background: var(--accent-bg); color: var(--accent); }
+.suggest-icon.agent { background: var(--agent-bg); color: var(--accent2); }
+
+.suggest-main { flex: 1; min-width: 0; }
+.suggest-name { color: var(--text); font-size: 12px; }
+.suggest-name mark { background: none; color: var(--accent); font-weight: 500; }
+.suggest-name mark.agent-mark { color: var(--accent2); }
+.suggest-desc { font-size: 10px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+.suggest-meta { text-align: right; flex-shrink: 0; }
+.suggest-path { font-size: 9px; color: var(--text-faint); }
+.suggest-score {
+  font-size: 9px; padding: 1px 5px; border-radius: 2px; margin-top: 2px;
+  display: inline-block;
+}
+.suggest-score.high { background: rgba(200,169,109,.1); color: var(--accent); }
+.suggest-score.high.agent-score { background: rgba(127,191,168,.1); color: var(--accent2); }
+.suggest-score.med { background: var(--surface3); color: var(--text-faint); }
+
+.suggest-no-results { padding: 14px 12px; font-size: 11px; color: var(--text-faint); text-align: center; }
+
+.suggest-footer {
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 9.5px; color: var(--text-faint);
+  display: flex; gap: 12px;
+}
+.suggest-footer kbd {
+  display: inline-block;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 3px; padding: 0px 5px; font-family: var(--mono);
+  font-size: 9px; color: var(--text-dim);
+}
+
+/* ── PREVIEW ── */
+.preview-pane {
+  flex: 1; overflow-y: auto; padding: 20px 36px 80px;
+  border-left: 1px solid var(--border); display: none;
+}
+.preview-pane.visible { display: block; }
+.preview-pane::-webkit-scrollbar { width: 3px; }
+.preview-pane::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.preview-pane h1,.preview-pane h2,.preview-pane h3,.preview-pane h4 {
+  font-family: var(--serif); font-weight: 400; color: var(--text); margin: 1.6em 0 .5em; line-height: 1.3;
+}
+.preview-pane h1 { font-size: 26px; }
+.preview-pane h2 { font-size: 20px; }
+.preview-pane h3 { font-size: 16px; color: var(--text-dim); }
+.preview-pane h4 { font-size: 14px; color: var(--text-dim); }
+.preview-pane p  { color: var(--text-dim); line-height: 1.8; margin-bottom: .9em; font-size: 14px; font-family: var(--serif); }
+.preview-pane code { font-family: var(--mono); font-size: 12px; background: var(--surface2); color: var(--accent); padding: 1px 6px; border-radius: 3px; }
+.preview-pane pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin: 1em 0; overflow-x: auto; }
+.preview-pane pre code { background: none; padding: 0; color: var(--text); font-size: 13px; }
+.preview-pane ul,.preview-pane ol { color: var(--text-dim); padding-left: 1.4em; margin-bottom: .9em; font-family: var(--serif); font-size: 14px; line-height: 1.8; }
+.preview-pane li { margin-bottom: .2em; }
+.preview-pane blockquote { border-left: 2px solid var(--accent); margin: 1em 0; padding: 4px 16px; color: var(--text-dim); font-style: italic; font-family: var(--serif); }
+.preview-pane strong { color: var(--text); font-weight: 500; }
+.preview-pane em { font-style: italic; }
+.preview-pane a { color: var(--accent); text-decoration: none; }
+.preview-pane a:hover { text-decoration: underline; }
+.preview-pane hr { border: none; border-top: 1px solid var(--border2); margin: 1.5em 0; }
+.preview-pane table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 13px; font-family: var(--mono); }
+.preview-pane th,.preview-pane td { padding: 6px 12px; border: 1px solid var(--border2); text-align: left; }
+.preview-pane th { background: var(--surface2); color: var(--text); }
+.preview-pane td { color: var(--text-dim); }
+.mention-skill { color: var(--accent); background: var(--accent-bg); padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 12px; }
+.mention-agent { color: var(--accent2); background: var(--agent-bg); padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 12px; }
+
+/* ── STATUSBAR ── */
+.statusbar {
+  height: 26px; background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 14px;
+  gap: 14px; flex-shrink: 0; position: relative;
+}
+.status-item { font-size: 10px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; letter-spacing: .04em; white-space: nowrap; }
+.status-item.live { color: var(--text-dim); }
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); }
+
+.claude-btn {
+  position: absolute; right: 14px;
+  top: 50%; transform: translateY(-50%);
+  background: var(--accent); color: var(--bg);
+  border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: .06em; padding: 5px 14px;
+  border-radius: 4px; display: flex; align-items: center; gap: 7px;
+  transition: opacity .15s, box-shadow .15s;
+  box-shadow: 0 2px 14px rgba(200,169,109,.2);
+}
+.claude-btn:hover { opacity: .85; box-shadow: 0 3px 20px rgba(200,169,109,.35); }
+.claude-btn svg { width: 12px; height: 12px; }
+
+/* ── SETTINGS MODAL ── */
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.65); backdrop-filter: blur(5px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .18s;
+}
+.overlay.visible { opacity: 1; pointer-events: all; }
+
+.settings-panel {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 10px; width: 520px; max-width: calc(100vw - 40px);
+  box-shadow: 0 28px 80px rgba(0,0,0,.65);
+  transform: translateY(8px); transition: transform .18s; overflow: hidden;
+}
+.overlay.visible .settings-panel { transform: translateY(0); }
+
+.settings-header {
+  padding: 16px 20px 13px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.settings-title { font-size: 12px; font-weight: 500; letter-spacing: .06em; }
+.settings-close { background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 16px; padding: 2px 6px; border-radius: 3px; transition: color .15s; line-height: 1; }
+.settings-close:hover { color: var(--text); }
+
+.settings-body { padding: 18px 20px; max-height: 60vh; overflow-y: auto; }
+.settings-section { margin-bottom: 20px; }
+.settings-section-title { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 10px; }
+
+.path-list { display: flex; flex-direction: column; gap: 5px; }
+.path-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 7px 10px;
+}
+.path-text { flex: 1; font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.path-tag { font-size: 8px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 6px; border-radius: 2px; flex-shrink: 0; cursor: default; }
+.path-tag.public   { background: rgba(200,169,109,.1); color: var(--accent); }
+.path-tag.user     { background: rgba(127,191,168,.1); color: var(--accent2); }
+.path-tag.project  { background: rgba(180,130,220,.1); color: #c0a0e0; }
+.path-tag.examples { background: rgba(100,100,100,.15); color: var(--text-dim); }
+.path-tag-select {
+  font-size: 8px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 2px; flex-shrink: 0; cursor: pointer;
+  background: transparent; border: 1px solid var(--border2); color: var(--text-dim);
+  font-family: var(--mono);
+}
+.path-count { font-size: 10px; color: var(--text-faint); flex-shrink: 0; }
+.path-remove { background: none; border: none; cursor: pointer; color: var(--text-faint); padding: 2px 6px; border-radius: 2px; font-size: 15px; line-height: 1; transition: color .15s; }
+.path-remove:hover { color: var(--red); }
+
+.add-path-row {
+  display: flex; gap: 6px; margin-top: 8px; align-items: center;
+}
+.add-path-input {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border2);
+  color: var(--fg); border-radius: 5px; padding: 5px 8px;
+  font: inherit; font-size: 11px; outline: none; min-width: 0;
+}
+.add-path-input:focus { border-color: var(--accent); }
+.add-path-input::placeholder { color: var(--fg3); }
+.add-path-browse {
+  flex-shrink: 0; background: none; border: 1px solid var(--border2);
+  color: var(--fg2); border-radius: 5px; padding: 4px 6px; cursor: pointer;
+  display: flex; align-items: center; transition: border-color .15s, color .15s;
+}
+.add-path-browse:hover { border-color: var(--accent); color: var(--accent); }
+.add-path-btn {
+  flex-shrink: 0; text-align: left;
+  background: none; border: 1px dashed var(--border2);
+  border-radius: 5px; padding: 7px 12px;
+  color: var(--text-dim); font-family: var(--mono); font-size: 11px;
+  cursor: pointer; display: flex; align-items: center; gap: 7px;
+  transition: border-color .15s, color .15s;
+}
+.add-path-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.skill-summary {
+  display: flex; gap: 12px; margin-top: 14px;
+  padding: 10px 12px; background: var(--surface2);
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.summary-stat { display: flex; flex-direction: column; gap: 2px; }
+.summary-num { font-size: 18px; font-weight: 300; color: var(--text); line-height: 1; }
+.summary-label { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.summary-divider { width: 1px; background: var(--border2); margin: 2px 0; }
+
+.settings-footer { padding: 13px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.btn { background: none; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 16px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); cursor: pointer; transition: all .15s; }
+.btn:hover { color: var(--text); background: var(--surface2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
+.btn.primary:hover { opacity: .85; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 38px; left: 50%; transform: translateX(-50%) translateY(8px);
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 5px; padding: 7px 14px;
+  font-size: 11px; color: var(--text-dim);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 300;
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast-dot { width: 5px; height: 5px; border-radius: 50%; }
+.toast-dot.skill { background: var(--accent); }
+.toast-dot.agent { background: var(--accent2); }
+.toast-dot.error { background: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- TITLEBAR -->
+<div class="titlebar" id="titlebar">
+  <div class="titlebar-traffic" id="traffic-lights">
+    <div class="traffic-dot dot-close" id="btn-close" title="Close"></div>
+    <div class="traffic-dot dot-min"   id="btn-min"   title="Minimize"></div>
+    <div class="traffic-dot dot-max"   id="btn-max"   title="Maximize"></div>
+  </div>
+
+  <div class="titlebar-center">
+    <span class="titlebar-dir"   id="tb-dir"></span>
+    <span class="titlebar-fname" id="tb-name">untitled</span>
+    <span class="titlebar-dot"   id="tb-dot">●</span>
+  </div>
+
+  <div class="titlebar-actions">
+    <button class="tb-btn" id="btn-files" title="Toggle file panel">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2" width="5" height="6" rx=".8"/><rect x="9" y="2" width="5" height="4" rx=".8"/><rect x="9" y="8" width="5" height="6" rx=".8"/><rect x="2" y="10" width="5" height="4" rx=".8"/></svg>
+      files
+    </button>
+    <button class="tb-btn" id="btn-new">new</button>
+    <button class="tb-btn" id="btn-open">open</button>
+    <button class="tb-btn" id="btn-save">save</button>
+    <button class="tb-btn accent" id="btn-settings">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M11.5 4.5l1.4-1.4M3.1 12.9l1.4-1.4"/></svg>
+      skill paths
+    </button>
+  </div>
+
+  <!-- Windows/Linux window controls (shown via JS) -->
+  <div class="win-controls" id="win-controls">
+    <button class="win-btn" id="win-min">─</button>
+    <button class="win-btn" id="win-max">□</button>
+    <button class="win-btn close" id="win-close">✕</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- FILE PANEL -->
+  <div class="file-panel" id="file-panel">
+    <div class="panel-header">
+      <span class="panel-title">Files</span>
+    </div>
+    <div class="file-tree" id="file-tree">
+      <div class="tree-group-label">recent</div>
+      <div id="recent-list"></div>
+      <div class="tree-group-label">skills</div>
+      <div id="skills-list"></div>
+      <div class="tree-group-label">agents</div>
+      <div id="agents-list"></div>
+    </div>
+  </div>
+
+  <!-- EDITOR AREA -->
+  <div class="editor-area">
+
+    <div class="editor-meta">
+      <span class="editor-path" id="editor-path">untitled</span>
+      <div class="trigger-legend">
+        <span class="legend-item"><span class="legend-key skill">#</span> skills</span>
+        <span class="legend-item"><span class="legend-key agent">@</span> agents</span>
+      </div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="edit">edit</button>
+        <button class="mode-btn"        data-mode="split">split</button>
+        <button class="mode-btn"        data-mode="preview">preview</button>
+      </div>
+      <div class="font-size-toggle">
+        <button class="fs-btn active" data-fs="small">S</button>
+        <button class="fs-btn"        data-fs="medium">M</button>
+        <button class="fs-btn"        data-fs="large">L</button>
+      </div>
+    </div>
+
+    <div class="editor-body">
+      <div class="editor-pane" id="editor-pane">
+        <textarea id="editor" spellcheck="false"
+          placeholder="start writing…  ( type # for skills, @ for agents )"></textarea>
+
+        <!-- SUGGESTION POPUP -->
+        <div class="suggest-popup" id="suggest-popup">
+          <div class="suggest-header">
+            <span class="suggest-trigger-badge skill" id="suggest-badge">#</span>
+            <span class="suggest-header-label">fuzzy match · <span class="suggest-query-text" id="suggest-query-text">…</span></span>
+          </div>
+          <div id="suggest-list"></div>
+          <div class="suggest-footer">
+            <span><kbd>↑↓</kbd> navigate</span>
+            <span><kbd>↵</kbd> insert</span>
+            <span><kbd>esc</kbd> dismiss</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="preview-pane" id="preview-pane"></div>
+    </div>
+
+    <div class="statusbar">
+      <span class="status-item live"><span class="status-dot"></span> markdown</span>
+      <span class="status-item" id="word-count">0 words</span>
+      <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
+      <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
+      <button class="claude-btn" id="btn-claude">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
+        send to claude
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="overlay" id="settings-overlay">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <span class="settings-title">Skill &amp; Agent Paths</span>
+      <button class="settings-close" id="settings-close">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">scan paths — searched in order</div>
+        <div class="path-list" id="path-list"></div>
+        <div class="add-path-row">
+          <input class="add-path-input" id="add-path-input" type="text" placeholder="~/path/to/skills" spellcheck="false" />
+          <button class="add-path-browse" id="add-path-browse" title="Browse…">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" width="11" height="11"><rect x="1" y="3.5" width="10" height="7.5" rx="1"/><path d="M1 6h10M4 3.5V2h4v1.5"/></svg>
+          </button>
+          <button class="add-path-btn" id="add-path-btn">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" width="11" height="11"><path d="M6 1v10M1 6h10"/></svg>
+            add
+          </button>
+        </div>
+      </div>
+      <div class="skill-summary" id="skill-summary">
+        <div class="summary-stat">
+          <span class="summary-num" id="sum-skills" style="color:var(--accent)">0</span>
+          <span class="summary-label"># skills</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-stat">
+          <span class="summary-num" id="sum-agents" style="color:var(--accent2)">0</span>
+          <span class="summary-label">@ agents</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-stat">
+          <span class="summary-num" id="sum-paths">0</span>
+          <span class="summary-label">paths</span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-stat">
+          <span class="summary-num" id="sum-conflicts">0</span>
+          <span class="summary-label">conflicts</span>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn" id="settings-cancel">cancel</button>
+      <button class="btn primary" id="settings-save">save &amp; rescan</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-dot skill" id="toast-dot"></div>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+'use strict'
+
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+let currentFilePath = null
+let isDirty         = false
+let settings        = { skillPaths: [], recentFiles: [] }
+let skillsData      = { skills: [], agents: [] }
+let pendingSettings = null   // settings being edited in modal
+let panelOpen       = true
+let currentMode     = 'edit'
+let toastTimer      = null
+
+// Expose to main process for dirty-close handling
+window.__isDirty     = false
+window.__triggerSave = async () => { await handleSave() }
+
+// ─────────────────────────────────────────────
+// Keyboard shortcuts
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey
+  if (mod && e.key === 's') { e.preventDefault(); e.shiftKey ? handleSaveAs() : handleSave() }
+  if (mod && e.key === 'o') { e.preventDefault(); handleOpen() }
+  if (mod && e.key === 'n') { e.preventDefault(); handleNew() }
+})
+
+// ─────────────────────────────────────────────
+// Platform setup
+// ─────────────────────────────────────────────
+const platform = window.api ? window.api.platform : 'darwin'
+
+if (platform === 'darwin') {
+  // Native traffic lights — wire custom dots as a fallback visual
+  document.getElementById('btn-close').addEventListener('click', () => window.api && window.api.close())
+  document.getElementById('btn-min').addEventListener('click',   () => window.api && window.api.minimize())
+  document.getElementById('btn-max').addEventListener('click',   () => window.api && window.api.maximize())
+} else {
+  // Show custom window controls on Windows/Linux
+  document.getElementById('traffic-lights').style.display = 'none'
+  const wc = document.getElementById('win-controls')
+  wc.style.display = 'flex'
+  document.getElementById('win-close').addEventListener('click', () => window.api && window.api.close())
+  document.getElementById('win-min').addEventListener('click',   () => window.api && window.api.minimize())
+  document.getElementById('win-max').addEventListener('click',   () => window.api && window.api.maximize())
+}
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+async function init () {
+  if (!window.api) {
+    // Browser preview mode: seed with demo data
+    skillsData = {
+      skills: [
+        { name: 'docx',            tag: 'public',   desc: 'Word document generation' },
+        { name: 'pdf',             tag: 'public',   desc: 'PDF creation & manipulation' },
+        { name: 'pptx',            tag: 'public',   desc: 'PowerPoint presentations' },
+        { name: 'xlsx',            tag: 'public',   desc: 'Spreadsheet generation' },
+        { name: 'frontend-design', tag: 'public',   desc: 'UI design & components' },
+        { name: 'canvas-design',   tag: 'examples', desc: 'Canvas & generative art' },
+        { name: 'theme-factory',   tag: 'examples', desc: 'Design theme generation' },
+        { name: 'my-workflow',     tag: 'user',     desc: 'Personal workflow skill' },
+      ],
+      agents: [
+        { name: 'skill-creator',   tag: 'examples', desc: 'Create & improve skills' },
+        { name: 'mcp-builder',     tag: 'examples', desc: 'Build MCP servers' },
+        { name: 'doc-coauthoring', tag: 'examples', desc: 'Collaborative document workflow' },
+        { name: 'internal-comms',  tag: 'examples', desc: 'Company communication templates' },
+      ]
+    }
+    renderFilePanel()
+    updateStatusbar()
+    return
+  }
+
+  settings = await window.api.loadSettings()
+  applyFontSize(settings.fontSize || 'small')
+  await rescanSkills()
+  renderFilePanel()
+  updateStatusbar()
+
+  if (settings.lastOpenFile) {
+    await openFilePath(settings.lastOpenFile)
+  }
+}
+
+// ─────────────────────────────────────────────
+// Dirty state
+// ─────────────────────────────────────────────
+function setDirty (dirty) {
+  isDirty = dirty
+  window.__isDirty = dirty
+  document.getElementById('tb-dot').classList.toggle('show', dirty)
+}
+
+// ─────────────────────────────────────────────
+// File operations
+// ─────────────────────────────────────────────
+async function handleNew () {
+  if (isDirty) {
+    const ok = confirm('Discard unsaved changes?')
+    if (!ok) return
+  }
+  editorEl.value = ''
+  currentFilePath = null
+  setDirty(false)
+  updateTitlebar()
+  updateEditorPath()
+  updatePreview()
+  updateWordCount()
+}
+
+async function handleOpen () {
+  if (!window.api) return
+  if (isDirty) {
+    const ok = confirm('Discard unsaved changes?')
+    if (!ok) return
+  }
+  const result = await window.api.openFile()
+  if (!result) return
+  editorEl.value = result.content
+  currentFilePath = result.filePath
+  setDirty(false)
+  settings.recentFiles = dedupRecent(result.filePath, settings.recentFiles)
+  settings.lastOpenFile = result.filePath
+  await window.api.saveSettings(settings)
+  updateTitlebar()
+  updateEditorPath()
+  renderFilePanel()
+  updatePreview()
+  updateWordCount()
+}
+
+async function handleSave () {
+  if (!window.api) return
+  if (!currentFilePath) { await handleSaveAs(); return }
+  const result = await window.api.saveFile({ content: editorEl.value, filePath: currentFilePath })
+  if (!result) return
+  setDirty(false)
+  showToast('Saved', 'skill')
+}
+
+async function handleSaveAs () {
+  if (!window.api) return
+  const result = await window.api.saveFileAs({ content: editorEl.value })
+  if (!result) return
+  currentFilePath = result.filePath
+  settings.recentFiles = dedupRecent(result.filePath, settings.recentFiles)
+  settings.lastOpenFile = result.filePath
+  await window.api.saveSettings(settings)
+  setDirty(false)
+  updateTitlebar()
+  updateEditorPath()
+  renderFilePanel()
+  showToast('Saved', 'skill')
+}
+
+async function openFilePath (filePath) {
+  if (!window.api) return
+  const result = await window.api.readFile(filePath)
+  if (!result) { showToast('Could not open file', 'error'); return }
+  editorEl.value = result.content
+  currentFilePath = filePath
+  setDirty(false)
+  updateTitlebar()
+  updateEditorPath()
+  updatePreview()
+  updateWordCount()
+  renderFilePanel()
+}
+
+function dedupRecent (filePath, list) {
+  return [filePath, ...(list || []).filter(f => f !== filePath)].slice(0, 10)
+}
+
+// ─────────────────────────────────────────────
+// Skill scanning
+// ─────────────────────────────────────────────
+async function rescanSkills () {
+  if (!window.api) return
+  skillsData = await window.api.scanSkills(settings.skillPaths || [])
+  updateStatusbar()
+}
+
+// ─────────────────────────────────────────────
+// UI: Titlebar
+// ─────────────────────────────────────────────
+function updateTitlebar () {
+  const name = currentFilePath ? currentFilePath.split('/').pop() : 'untitled'
+  const dir  = currentFilePath
+    ? currentFilePath.slice(0, currentFilePath.lastIndexOf('/') + 1).replace(/^\/Users\/[^/]+/, '~')
+    : ''
+  document.getElementById('tb-name').textContent = name
+  document.getElementById('tb-dir').textContent  = dir
+}
+
+// ─────────────────────────────────────────────
+// UI: Editor path breadcrumb
+// ─────────────────────────────────────────────
+function updateEditorPath () {
+  const el = document.getElementById('editor-path')
+  if (!currentFilePath) { el.textContent = 'untitled'; return }
+  const name = currentFilePath.split('/').pop()
+  const dir  = currentFilePath
+    .slice(0, currentFilePath.lastIndexOf('/'))
+    .replace(/^\/Users\/[^/]+/, '~')
+  el.innerHTML = `${escHtml(dir)} / <span>${escHtml(name)}</span>`
+}
+
+// ─────────────────────────────────────────────
+// UI: File panel
+// ─────────────────────────────────────────────
+function renderFilePanel () {
+  renderRecent()
+  renderSkillsList()
+  renderAgentsList()
+}
+
+function renderRecent () {
+  const el = document.getElementById('recent-list')
+  const files = settings.recentFiles || []
+  if (!files.length) {
+    el.innerHTML = '<div class="tree-empty">no recent files</div>'
+    return
+  }
+  el.innerHTML = files.map(f => {
+    const name   = f.split('/').pop()
+    const active = f === currentFilePath
+    return `<div class="tree-item ${active ? 'active' : ''}" data-path="${escAttr(f)}" title="${escAttr(f)}">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+      <span class="tree-item-name">${escHtml(name)}</span>
+    </div>`
+  }).join('')
+  el.querySelectorAll('.tree-item').forEach(item => {
+    item.addEventListener('click', () => openFilePath(item.dataset.path))
+  })
+}
+
+function renderSkillsList () {
+  const el = document.getElementById('skills-list')
+  const list = skillsData.skills || []
+  if (!list.length) {
+    el.innerHTML = '<div class="tree-empty">no skills indexed</div>'
+    return
+  }
+  el.innerHTML = list.map(s => `
+    <div class="tree-item" data-path="${escAttr(s.path || '')}" title="${escAttr(s.name)}">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+      <span class="tree-item-name">${escHtml(s.name)}</span>
+      <span class="tree-tag skill">#</span>
+    </div>`).join('')
+  el.querySelectorAll('.tree-item[data-path]').forEach(item => {
+    if (item.dataset.path) item.addEventListener('click', () => openFilePath(item.dataset.path))
+  })
+}
+
+function renderAgentsList () {
+  const el = document.getElementById('agents-list')
+  const list = skillsData.agents || []
+  if (!list.length) {
+    el.innerHTML = '<div class="tree-empty">no agents indexed</div>'
+    return
+  }
+  el.innerHTML = list.map(a => `
+    <div class="tree-item" data-path="${escAttr(a.path || '')}" title="${escAttr(a.name)}">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="6" cy="4" r="2.2"/><path d="M1.5 10.5c0-2.5 9-2.5 9 0"/></svg>
+      <span class="tree-item-name">${escHtml(a.name)}</span>
+      <span class="tree-tag agent">@</span>
+    </div>`).join('')
+  el.querySelectorAll('.tree-item[data-path]').forEach(item => {
+    if (item.dataset.path) item.addEventListener('click', () => openFilePath(item.dataset.path))
+  })
+}
+
+// ─────────────────────────────────────────────
+// UI: Statusbar
+// ─────────────────────────────────────────────
+function updateStatusbar () {
+  const sc = (skillsData.skills || []).length
+  const ac = (skillsData.agents || []).length
+  document.getElementById('skill-count-status').textContent = `${sc} skills · ${ac} agents indexed`
+}
+
+function updateWordCount () {
+  const words = editorEl.value.trim().split(/\s+/).filter(Boolean).length
+  document.getElementById('word-count').textContent = words + ' words'
+}
+
+function updateCursorPos () {
+  const val   = editorEl.value
+  const pos   = editorEl.selectionStart
+  const lines = val.slice(0, pos).split('\n')
+  const ln    = lines.length
+  const col   = lines[lines.length - 1].length + 1
+  document.getElementById('cursor-pos').textContent = `Ln ${ln}, Col ${col}`
+}
+
+// ─────────────────────────────────────────────
+// Editor: reference elements
+// ─────────────────────────────────────────────
+const editorEl = document.getElementById('editor')
+
+// ─────────────────────────────────────────────
+// Editor: input / keydown
+// ─────────────────────────────────────────────
+editorEl.addEventListener('input', () => {
+  if (!isDirty) setDirty(true)
+  updateWordCount()
+  if (currentMode !== 'edit') updatePreview()
+  handleSuggestion()
+})
+
+editorEl.addEventListener('keydown', e => {
+  // Tab → 2 spaces
+  if (e.key === 'Tab' && !popupVisible) {
+    e.preventDefault()
+    const start = editorEl.selectionStart
+    const end   = editorEl.selectionEnd
+    const val   = editorEl.value
+    editorEl.value = val.slice(0, start) + '  ' + val.slice(end)
+    editorEl.selectionStart = editorEl.selectionEnd = start + 2
+    if (!isDirty) setDirty(true)
+    updateWordCount()
+    return
+  }
+  // Popup navigation
+  if (popupVisible) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, lastResults.length - 1); renderPopupActive(); return }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); renderPopupActive(); return }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (lastResults[activeIdx]) { e.preventDefault(); insertSuggestion(lastResults[activeIdx]); return }
+    }
+    if (e.key === 'Escape') { hidePopup(); return }
+  }
+})
+
+editorEl.addEventListener('click',  updateCursorPos)
+editorEl.addEventListener('keyup',  updateCursorPos)
+
+// Dismiss popup on blur
+editorEl.addEventListener('blur', () => {
+  setTimeout(hidePopup, 150)
+})
+
+// ─────────────────────────────────────────────
+// View modes
+// ─────────────────────────────────────────────
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentMode = btn.dataset.mode
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b === btn))
+    const preview = document.getElementById('preview-pane')
+    const editor  = editorEl
+    if (currentMode === 'edit') {
+      editor.style.display = ''
+      preview.classList.remove('visible')
+    } else if (currentMode === 'split') {
+      editor.style.display = ''
+      preview.classList.add('visible')
+      updatePreview()
+    } else {
+      editor.style.display = 'none'
+      preview.classList.add('visible')
+      updatePreview()
+    }
+  })
+})
+
+// ─────────────────────────────────────────────
+// Font size
+// ─────────────────────────────────────────────
+function applyFontSize (size) {
+  document.body.classList.remove('fs-medium', 'fs-large')
+  if (size === 'medium') document.body.classList.add('fs-medium')
+  else if (size === 'large') document.body.classList.add('fs-large')
+  document.querySelectorAll('.fs-btn').forEach(b => b.classList.toggle('active', b.dataset.fs === size))
+}
+
+document.querySelectorAll('.fs-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const size = btn.dataset.fs
+    applyFontSize(size)
+    settings.fontSize = size
+    if (window.api) await window.api.saveSettings(settings)
+  })
+})
+
+// ─────────────────────────────────────────────
+// Markdown Preview
+// ─────────────────────────────────────────────
+function updatePreview () {
+  const pane = document.getElementById('preview-pane')
+  if (!pane.classList.contains('visible')) return
+
+  let html
+  if (typeof marked !== 'undefined') {
+    html = marked.parse(editorEl.value || '')
+  } else {
+    html = `<pre>${escHtml(editorEl.value)}</pre>`
+  }
+
+  // Annotate #skill and @agent mentions (not inside code blocks)
+  html = html.replace(/(?<!<[^>]*)#([a-zA-Z][a-zA-Z0-9_-]*)/g, (_, n) =>
+    `<span class="mention-skill">#${n}</span>`)
+  html = html.replace(/(?<!<[^>]*)@([a-zA-Z][a-zA-Z0-9_-]*)/g, (_, n) =>
+    `<span class="mention-agent">@${n}</span>`)
+
+  pane.innerHTML = html
+}
+
+// ─────────────────────────────────────────────
+// Suggestion popup
+// ─────────────────────────────────────────────
+const popup     = document.getElementById('suggest-popup')
+const sugBadge  = document.getElementById('suggest-badge')
+const sugQuery  = document.getElementById('suggest-query-text')
+const sugList   = document.getElementById('suggest-list')
+const editorPan = document.getElementById('editor-pane')
+
+let popupVisible = false
+let activeMode   = 'skill'
+let activeIdx    = 0
+let lastResults  = []
+
+function handleSuggestion () {
+  const val    = editorEl.value
+  const pos    = editorEl.selectionStart
+  const before = val.slice(0, pos)
+
+  // Dismiss on heading (##)
+  if (/#{2,}[a-z0-9\-]*$/i.test(before)) { hidePopup(); return }
+
+  const skillMatch = before.match(/(?<!#)#([a-z0-9\-]*)$/i)
+  const agentMatch = before.match(/(?<!@)@([a-z0-9\-]*)$/i)
+
+  if (skillMatch)      showPopup(skillMatch[1], 'skill')
+  else if (agentMatch) showPopup(agentMatch[1], 'agent')
+  else                 hidePopup()
+}
+
+function showPopup (query, mode) {
+  activeMode  = mode
+  activeIdx   = 0
+  lastResults = search(query, mode)
+
+  sugBadge.textContent = mode === 'skill' ? '#' : '@'
+  sugBadge.className   = 'suggest-trigger-badge ' + mode
+  sugQuery.textContent = query || '…'
+
+  if (!lastResults.length) {
+    sugList.innerHTML = '<div class="suggest-no-results">no matches</div>'
+  } else {
+    sugList.innerHTML = lastResults.map((s, i) => {
+      const scoreClass = s.score >= 75 ? 'high' : 'med'
+      const agentScore = mode === 'agent' ? 'agent-score' : ''
+      return `<div class="suggest-item ${i === 0 ? 'active' : ''} ${mode === 'agent' ? 'agent-mode' : ''}" data-idx="${i}">
+        <div class="suggest-icon ${mode}">
+          ${mode === 'skill'
+            ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" width="11" height="11"><path d="M2 1h5l3 3v7H2V1z"/></svg>'
+            : '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" width="11" height="11"><circle cx="6" cy="4" r="2.2"/><path d="M1.5 10.5c0-2.5 9-2.5 9 0"/></svg>'}
+        </div>
+        <div class="suggest-main">
+          <div class="suggest-name">${highlightMatch(s.name, query, mode === 'agent')}</div>
+          ${s.desc ? `<div class="suggest-desc">${escHtml(s.desc)}</div>` : ''}
+        </div>
+        <div class="suggest-meta">
+          <div class="suggest-path">${escHtml(s.tag || s.path || '')}</div>
+          <span class="suggest-score ${scoreClass} ${agentScore}">${s.score}%</span>
+        </div>
+      </div>`
+    }).join('')
+  }
+
+  // Position near cursor
+  positionPopup()
+
+  popup.classList.add('visible')
+  popupVisible = true
+
+  sugList.querySelectorAll('.suggest-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { activeIdx = +el.dataset.idx; renderPopupActive() })
+    el.addEventListener('click',      () => insertSuggestion(lastResults[+el.dataset.idx]))
+  })
+}
+
+function hidePopup () {
+  popup.classList.remove('visible')
+  popupVisible = false
+}
+
+function renderPopupActive () {
+  sugList.querySelectorAll('.suggest-item').forEach((el, i) => {
+    el.classList.toggle('active', i === activeIdx)
+  })
+}
+
+function insertSuggestion (item) {
+  const val     = editorEl.value
+  const pos     = editorEl.selectionStart
+  const trigger = activeMode === 'skill' ? '#' : '@'
+  const before  = val.slice(0, pos)
+  const idx     = before.lastIndexOf(trigger)
+  if (idx < 0) { hidePopup(); return }
+  const after   = val.slice(pos)
+  editorEl.value = val.slice(0, idx) + trigger + item.name + ' ' + after
+  editorEl.selectionStart = editorEl.selectionEnd = idx + item.name.length + 2
+  hidePopup()
+  editorEl.focus()
+  setDirty(true)
+  showToast(`${trigger}${item.name} inserted`, activeMode)
+}
+
+function positionPopup () {
+  // Calculate approximate cursor position in the textarea
+  const coords = getCaretCoords(editorEl)
+  const panRect = editorPan.getBoundingClientRect()
+
+  const POPUP_HEIGHT = 220
+  const POPUP_WIDTH  = 300
+  const GAP = 6
+
+  let top  = coords.top - editorEl.scrollTop + coords.height + GAP
+  let left = Math.max(4, coords.left - 4)
+
+  // Flip up if too close to bottom
+  if (top + POPUP_HEIGHT > editorPan.clientHeight - 30) {
+    top = coords.top - editorEl.scrollTop - POPUP_HEIGHT - GAP
+  }
+  // Clamp left
+  if (left + POPUP_WIDTH > editorPan.clientWidth - 8) {
+    left = editorPan.clientWidth - POPUP_WIDTH - 8
+  }
+
+  popup.style.top    = Math.max(4, top) + 'px'
+  popup.style.left   = left + 'px'
+  popup.style.bottom = 'auto'
+}
+
+// Mirror-div caret position
+function getCaretCoords (textarea) {
+  const div = document.createElement('div')
+  const cs  = window.getComputedStyle(textarea)
+
+  div.style.cssText = [
+    'position:fixed', 'top:0', 'left:0', 'visibility:hidden', 'pointer-events:none',
+    `white-space:pre-wrap`, `word-wrap:break-word`, `overflow-wrap:break-word`,
+    `font-family:${cs.fontFamily}`, `font-size:${cs.fontSize}`, `font-weight:${cs.fontWeight}`,
+    `line-height:${cs.lineHeight}`, `letter-spacing:${cs.letterSpacing}`,
+    `padding:${cs.padding}`, `width:${textarea.clientWidth}px`, `border:${cs.border}`,
+    `box-sizing:${cs.boxSizing}`,
+  ].join(';')
+
+  const pos    = textarea.selectionStart
+  const before = textarea.value.slice(0, pos)
+  div.textContent = before
+
+  const span = document.createElement('span')
+  span.textContent = textarea.value.charAt(pos) || '.'
+  div.appendChild(span)
+
+  document.body.appendChild(div)
+  const spanRect = span.getBoundingClientRect()
+  const taRect   = textarea.getBoundingClientRect()
+  document.body.removeChild(div)
+
+  return {
+    top:    spanRect.top  - taRect.top,
+    left:   spanRect.left - taRect.left,
+    height: spanRect.height,
+  }
+}
+
+// ─────────────────────────────────────────────
+// Fuzzy search
+// ─────────────────────────────────────────────
+function fuzzyScore (query, target) {
+  if (!query) return 50
+  query  = query.toLowerCase()
+  target = target.toLowerCase()
+  if (target === query)            return 100
+  if (target.startsWith(query))    return 90
+  if (target.includes(query))      return 75
+  // character sequence
+  let qi = 0, score = 0, last = -1
+  for (let ti = 0; ti < target.length && qi < query.length; ti++) {
+    if (target[ti] === query[qi]) {
+      score += last === ti - 1 ? 10 : 5
+      last = ti; qi++
+    }
+  }
+  return qi === query.length ? Math.min(score, 70) : 0
+}
+
+function highlightMatch (name, query, isAgent) {
+  if (!query) return escHtml(name)
+  const lower = name.toLowerCase()
+  const q     = query.toLowerCase()
+  const idx   = lower.indexOf(q)
+  if (idx >= 0) {
+    const cls = isAgent ? 'agent-mark' : ''
+    return escHtml(name.slice(0, idx))
+      + `<mark class="${cls}">${escHtml(name.slice(idx, idx + q.length))}</mark>`
+      + escHtml(name.slice(idx + q.length))
+  }
+  return escHtml(name)
+}
+
+function search (query, mode) {
+  const list = mode === 'agent' ? (skillsData.agents || []) : (skillsData.skills || [])
+  return list
+    .map(s => ({ ...s, score: fuzzyScore(query, s.name) }))
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+}
+
+// ─────────────────────────────────────────────
+// Settings modal
+// ─────────────────────────────────────────────
+function openSettings () {
+  pendingSettings = JSON.parse(JSON.stringify(settings))
+  renderSettingsPanel()
+  document.getElementById('settings-overlay').classList.add('visible')
+}
+
+function closeSettings () {
+  document.getElementById('settings-overlay').classList.remove('visible')
+  pendingSettings = null
+}
+
+function renderSettingsPanel () {
+  const paths = (pendingSettings.skillPaths || [])
+  const el    = document.getElementById('path-list')
+
+  el.innerHTML = paths.map((p, i) => `
+    <div class="path-row" data-idx="${i}">
+      <span class="path-text" title="${escAttr(p.path)}">${escHtml(p.path)}</span>
+      <select class="path-tag-select" data-idx="${i}">
+        ${['public','user','project','examples'].map(t =>
+          `<option value="${t}" ${p.tag === t ? 'selected' : ''}>${t}</option>`
+        ).join('')}
+      </select>
+      <span class="path-count" id="path-count-${i}">scanning…</span>
+      <button class="path-remove" data-idx="${i}" title="Remove">×</button>
+    </div>`).join('')
+
+  el.querySelectorAll('.path-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.idx
+      pendingSettings.skillPaths.splice(idx, 1)
+      renderSettingsPanel()
+    })
+  })
+
+  el.querySelectorAll('.path-tag-select').forEach(sel => {
+    sel.addEventListener('change', () => {
+      pendingSettings.skillPaths[+sel.dataset.idx].tag = sel.value
+    })
+  })
+
+  // Update summary
+  updateSettingsSummary()
+}
+
+function updateSettingsSummary () {
+  const paths = (pendingSettings || settings).skillPaths || []
+  document.getElementById('sum-paths').textContent = paths.length
+  // Use current scan data for skill/agent counts
+  document.getElementById('sum-skills').textContent  = (skillsData.skills || []).length
+  document.getElementById('sum-agents').textContent  = (skillsData.agents || []).length
+  document.getElementById('sum-conflicts').textContent = '0'
+}
+
+document.getElementById('btn-settings').addEventListener('click', openSettings)
+document.getElementById('settings-close').addEventListener('click', closeSettings)
+document.getElementById('settings-cancel').addEventListener('click', closeSettings)
+document.getElementById('settings-overlay').addEventListener('click', e => {
+  if (e.target.id === 'settings-overlay') closeSettings()
+})
+
+document.getElementById('add-path-browse').addEventListener('click', async () => {
+  if (!window.api) return
+  const dirPath = await window.api.browseDirectory()
+  if (!dirPath) return
+  document.getElementById('add-path-input').value = dirPath
+})
+
+document.getElementById('add-path-btn').addEventListener('click', () => {
+  const val = document.getElementById('add-path-input').value.trim()
+  if (!val) return
+  pendingSettings.skillPaths.push({ path: val, tag: 'user' })
+  document.getElementById('add-path-input').value = ''
+  renderSettingsPanel()
+})
+
+document.getElementById('add-path-input').addEventListener('keydown', async e => {
+  if (e.key === 'Enter') { document.getElementById('add-path-btn').click(); return }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'v' && window.api) {
+    e.preventDefault()
+    const text = await window.api.readFromClipboard()
+    if (text) {
+      const el = e.target
+      const start = el.selectionStart, end = el.selectionEnd
+      el.value = el.value.slice(0, start) + text + el.value.slice(end)
+      el.selectionStart = el.selectionEnd = start + text.length
+    }
+  }
+})
+
+document.getElementById('settings-save').addEventListener('click', async () => {
+  if (!window.api) { closeSettings(); return }
+  const pendingInput = document.getElementById('add-path-input').value.trim()
+  if (pendingInput) {
+    pendingSettings.skillPaths.push({ path: pendingInput, tag: 'user' })
+    document.getElementById('add-path-input').value = ''
+  }
+  settings = pendingSettings
+  await window.api.saveSettings(settings)
+  await rescanSkills()
+  renderFilePanel()
+  updateStatusbar()
+  updateSettingsSummary()
+  closeSettings()
+  showToast('Paths saved · skills rescanned', 'skill')
+})
+
+// ─────────────────────────────────────────────
+// File panel toggle
+// ─────────────────────────────────────────────
+document.getElementById('btn-files').addEventListener('click', () => {
+  panelOpen = !panelOpen
+  document.getElementById('file-panel').classList.toggle('collapsed', !panelOpen)
+})
+
+// ─────────────────────────────────────────────
+// Titlebar buttons
+// ─────────────────────────────────────────────
+document.getElementById('btn-new').addEventListener('click',  handleNew)
+document.getElementById('btn-open').addEventListener('click', handleOpen)
+document.getElementById('btn-save').addEventListener('click', handleSave)
+
+// ─────────────────────────────────────────────
+// Send to Claude
+// ─────────────────────────────────────────────
+document.getElementById('btn-claude').addEventListener('click', async () => {
+  const text = editorEl.value
+  if (!text.trim()) { showToast('Nothing to copy', 'error'); return }
+  try {
+    if (window.api) {
+      await window.api.copyToClipboard(text)
+    } else {
+      await navigator.clipboard.writeText(text)
+    }
+    showToast('Copied · ready to paste into Claude Code', 'skill')
+  } catch (_) {
+    showToast('Copy failed', 'error')
+  }
+})
+
+// ─────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────
+function showToast (msg, type) {
+  const toast = document.getElementById('toast')
+  document.getElementById('toast-msg').textContent = msg
+  document.getElementById('toast-dot').className   = 'toast-dot ' + (type || 'skill')
+  toast.classList.add('show')
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2400)
+}
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function escHtml (str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+function escAttr (str) { return escHtml(str) }
+
+// ─────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────
+init()
+</script>
+</body>
+</html>
