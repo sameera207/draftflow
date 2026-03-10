@@ -30,6 +30,24 @@
   --serif: 'Lora', Georgia, serif;
 }
 
+/* ── LIGHT THEME ── */
+html.light {
+  --bg:        #f5f3f0;
+  --surface:   #edeae6;
+  --surface2:  #e2ddd8;
+  --surface3:  #d6d0c9;
+  --border:    #ccc6be;
+  --border2:   #b8b0a6;
+  --text:      #1a1815;
+  --text-dim:  #5a5450;
+  --text-faint:#9a9088;
+  --accent:    #9a7030;
+  --accent2:   #267a68;
+  --accent-bg: rgba(154,112,48,0.1);
+  --agent-bg:  rgba(38,122,104,0.1);
+  --red:       #b04030;
+}
+
 html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
 
 /* ── TITLEBAR ── */
@@ -492,6 +510,11 @@ textarea#editor::placeholder { color: var(--text-faint); }
     <button class="tb-btn" id="btn-new">new</button>
     <button class="tb-btn" id="btn-open">open</button>
     <button class="tb-btn" id="btn-save">save</button>
+    <button class="tb-btn" id="btn-theme" title="Toggle light/dark theme">
+      <svg id="theme-icon-dark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M13.5 10.5A6 6 0 0 1 5.5 2.5a6 6 0 1 0 8 8z"/></svg>
+      <svg id="theme-icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" style="display:none"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M11.5 4.5l1.4-1.4M3.1 12.9l1.4-1.4"/></svg>
+      theme
+    </button>
     <button class="tb-btn accent" id="btn-settings">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M11.5 4.5l1.4-1.4M3.1 12.9l1.4-1.4"/></svg>
       skill paths
@@ -719,6 +742,7 @@ async function init () {
 
   settings = await window.api.loadSettings()
   applyFontSize(settings.fontSize || 'small')
+  applyTheme(settings.theme || 'dark')
   await rescanSkills()
   renderFilePanel()
   updateStatusbar()
@@ -1027,6 +1051,23 @@ document.querySelectorAll('.fs-btn').forEach(btn => {
     settings.fontSize = size
     if (window.api) await window.api.saveSettings(settings)
   })
+})
+
+// ─────────────────────────────────────────────
+// Theme (light / dark)
+// ─────────────────────────────────────────────
+function applyTheme (theme) {
+  const isLight = theme === 'light'
+  document.documentElement.classList.toggle('light', isLight)
+  document.getElementById('theme-icon-dark').style.display  = isLight ? 'none'  : ''
+  document.getElementById('theme-icon-light').style.display = isLight ? ''      : 'none'
+}
+
+document.getElementById('btn-theme').addEventListener('click', async () => {
+  const next = document.documentElement.classList.contains('light') ? 'dark' : 'light'
+  applyTheme(next)
+  settings.theme = next
+  if (window.api) await window.api.saveSettings(settings)
 })
 
 // ─────────────────────────────────────────────
