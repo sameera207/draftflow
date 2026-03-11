@@ -23,7 +23,7 @@ function loadSettings () {
       settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'))
     }
   } catch (_) { settings = {} }
-  if (!settings.skillPaths)  settings.skillPaths  = []
+  if (!settings.skillPaths)  settings.skillPaths  = [{ path: '~/.claude', tag: 'claude' }]
   if (!settings.recentFiles) settings.recentFiles = []
   return settings
 }
