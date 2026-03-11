@@ -1,7 +1,9 @@
 {
-  "name": "markdownflow",
+  "name": "draftflow",
+  "productName": "Draftflow",
   "version": "1.0.0",
   "description": "Minimal Markdown editor for Claude Code workflows",
+  "homepage": "https://draftflow.dev",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
