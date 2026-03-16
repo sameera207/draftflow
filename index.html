@@ -1501,8 +1501,7 @@ document.getElementById('btn-sendback').addEventListener('click', async () => {
   try {
     const result = await window.api.sendBack(text)
     if (!result.ok) throw new Error(result.error)
-    document.getElementById('btn-sendback').style.display = 'none'
-    showToast('Sent back to Claude', 'skill')
+    showToast('Sent back to Claude — say "done" in Claude Code', 'skill')
   } catch (err) {
     showToast('Send back failed: ' + err.message, 'error')
   }
