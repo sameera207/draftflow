@@ -78,19 +78,23 @@ function walkDir (dir, depth, maxDepth, skills, agents, seen, tag) {
     const fullPath = path.join(dir, ent.name)
     let name = ent.name
 
-    // Parse SKILL.md front matter for name override
+    // Parse SKILL.md front matter for name and description
     const skillMd = path.join(fullPath, 'SKILL.md')
+    let desc = ''
     if (fs.existsSync(skillMd)) {
       try {
-        const m = fs.readFileSync(skillMd, 'utf8').match(/^name:\s*(.+)$/m)
-        if (m) name = m[1].trim()
+        const content = fs.readFileSync(skillMd, 'utf8')
+        const nameMatch = content.match(/^name:\s*(.+)$/m)
+        if (nameMatch) name = nameMatch[1].trim()
+        const descMatch = content.match(/^description:\s*(.+)$/m)
+        if (descMatch) desc = descMatch[1].trim().slice(0, 120)
       } catch (_) {}
     }
 
     if (fs.existsSync(skillMd) && !seen.has(name)) {
       seen.add(name)
       const isAgent = /agent|builder|creator|comms/i.test(ent.name)
-      ;(isAgent ? agents : skills).push({ name, dirName: ent.name, path: fullPath, tag })
+      ;(isAgent ? agents : skills).push({ name, dirName: ent.name, path: fullPath, tag, desc })
     }
 
     walkDir(fullPath, depth + 1, maxDepth, skills, agents, seen, tag)
