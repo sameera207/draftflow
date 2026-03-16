@@ -376,6 +376,19 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .claude-btn:hover { opacity: .85; box-shadow: 0 3px 20px rgba(200,169,109,.35); }
 .claude-btn svg { width: 12px; height: 12px; }
 
+.sendback-btn {
+  position: absolute; right: 170px;
+  top: 50%; transform: translateY(-50%);
+  background: var(--agent-bg); color: var(--accent2);
+  border: 1px solid rgba(127,191,168,.2); cursor: pointer;
+  font-family: var(--mono); font-size: 12px;
+  letter-spacing: .04em; padding: 3px 10px;
+  border-radius: 4px; display: flex; align-items: center; gap: 6px;
+  transition: background .15s;
+}
+.sendback-btn:hover { background: rgba(127,191,168,.15); }
+.sendback-btn svg { width: 11px; height: 11px; }
+
 /* ── SETTINGS MODAL ── */
 .overlay {
   position: fixed; inset: 0; z-index: 200;
@@ -597,6 +610,10 @@ textarea#editor::placeholder { color: var(--text-faint); }
       <span class="status-item" id="word-count">0 words</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
+      <button class="sendback-btn" id="btn-sendback" style="display:none">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7H2M6 3L2 7l4 4"/></svg>
+        send back
+      </button>
       <button class="claude-btn" id="btn-claude">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
         send to claude
@@ -750,6 +767,12 @@ async function init () {
   if (settings.lastOpenFile) {
     await openFilePath(settings.lastOpenFile)
   }
+
+  window.api.onBridgeOpen(async (filePath) => {
+    await openFilePath(filePath)
+    document.getElementById('btn-sendback').style.display = 'flex'
+    showToast('Opened from Claude · edit and send back', 'skill')
+  })
 }
 
 // ─────────────────────────────────────────────
@@ -1423,6 +1446,22 @@ document.getElementById('btn-files').addEventListener('click', () => {
 document.getElementById('btn-new').addEventListener('click',  handleNew)
 document.getElementById('btn-open').addEventListener('click', handleOpen)
 document.getElementById('btn-save').addEventListener('click', handleSave)
+
+// ─────────────────────────────────────────────
+// Send back (bridge response)
+// ─────────────────────────────────────────────
+document.getElementById('btn-sendback').addEventListener('click', async () => {
+  const text = editorEl.value
+  if (!text.trim()) { showToast('Nothing to send back', 'error'); return }
+  try {
+    const result = await window.api.sendBack(text)
+    if (!result.ok) throw new Error(result.error)
+    document.getElementById('btn-sendback').style.display = 'none'
+    showToast('Sent back to Claude', 'skill')
+  } catch (err) {
+    showToast('Send back failed: ' + err.message, 'error')
+  }
+})
 
 // ─────────────────────────────────────────────
 // Send to Claude

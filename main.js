@@ -12,6 +12,21 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
 
 let mainWindow
 let settings = {}
+let pendingBridgeUrl = null
+
+app.setAsDefaultProtocolClient('draftflow')
+
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  const filePath = parseBridgeUrl(url)
+  if (!filePath) return
+  if (mainWindow) {
+    mainWindow.focus()
+    mainWindow.webContents.send('bridge-open', filePath)
+  } else {
+    pendingBridgeUrl = url
+  }
+})
 
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json')
 
@@ -51,6 +66,16 @@ function addRecentFile (filePath) {
 
 function expandPath (p) {
   return p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : p
+}
+
+function parseBridgeUrl (url) {
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'draftflow:') return null
+    const file = u.searchParams.get('file')
+    if (!file) return null
+    return expandPath(file)
+  } catch (_) { return null }
 }
 
 // ── Skill scanning ────────────────────────────────────────────────────────────
@@ -131,6 +156,14 @@ function createWindow () {
 
   mainWindow = new BrowserWindow(opts)
   mainWindow.loadFile('index.html')
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (pendingBridgeUrl) {
+      const filePath = parseBridgeUrl(pendingBridgeUrl)
+      pendingBridgeUrl = null
+      if (filePath) mainWindow.webContents.send('bridge-open', filePath)
+    }
+  })
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
 
@@ -237,6 +270,35 @@ ipcMain.handle('scan-directory', async (_e, dirPath) => {
 })
 
 ipcMain.handle('scan-skills',    async (_e, paths)    => scanSkillPaths(paths))
+
+ipcMain.handle('send-back', async (_e, content) => {
+  const bridgeDir   = path.join(os.homedir(), '.claude', 'editor-bridge')
+  const responsePath = path.join(bridgeDir, 'response.md')
+  try {
+    fs.mkdirSync(bridgeDir, { recursive: true })
+    fs.writeFileSync(responsePath, content, 'utf8')
+    return { ok: true, path: responsePath }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+})
+
+ipcMain.handle('install-df-command', async () => {
+  const src  = path.join(__dirname, 'commands', 'df.md')
+  const dest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
+  try {
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.copyFileSync(src, dest)
+    return { ok: true, path: dest }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+})
+
+ipcMain.handle('df-command-installed', async () => {
+  const dest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
+  return fs.existsSync(dest)
+})
 ipcMain.handle('load-settings',  async ()             => loadSettings())
 ipcMain.handle('save-settings',  async (_e, s)        => persistSettings(s))
 ipcMain.handle('copy-to-clipboard',   async (_e, text) => { clipboard.writeText(text); return true })
