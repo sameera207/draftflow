@@ -644,6 +644,16 @@ textarea#editor::placeholder { color: var(--text-faint); }
           </button>
         </div>
       </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Claude Code bridge</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
+          <div style="flex:1;font-size:13px;color:var(--text-dim);line-height:1.4;">
+            Install the <code style="font-family:var(--mono);color:var(--accent);background:rgba(200,169,109,.1);padding:1px 5px;border-radius:3px;">/df</code> command so Claude Code can open files in Draftflow.
+          </div>
+          <button class="btn primary" id="btn-install-df" style="flex-shrink:0;">Install /df command</button>
+        </div>
+      </div>
+
       <div class="skill-summary" id="skill-summary">
         <div class="summary-stat">
           <span class="summary-num" id="sum-skills" style="color:var(--accent)">0</span>
@@ -1430,6 +1440,16 @@ document.getElementById('settings-save').addEventListener('click', async () => {
   updateSettingsSummary()
   closeSettings()
   showToast('Paths saved · skills rescanned', 'skill')
+})
+
+document.getElementById('btn-install-df').addEventListener('click', async () => {
+  if (!window.api) return
+  const result = await window.api.installDfCommand()
+  if (result.ok) {
+    showToast('/df command installed · ready in Claude Code', 'skill')
+  } else {
+    showToast('Install failed: ' + result.error, 'agent')
+  }
 })
 
 // ─────────────────────────────────────────────
