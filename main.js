@@ -3,6 +3,12 @@ const path = require('path')
 const fs   = require('fs')
 const os   = require('os')
 
+let _tokenizer = null
+function getTokenizer () {
+  if (_tokenizer) return _tokenizer
+  try { _tokenizer = require('@anthropic-ai/tokenizer'); return _tokenizer } catch (_) { return null }
+}
+
 Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'Edit', submenu: [
     { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
@@ -299,6 +305,36 @@ ipcMain.handle('df-command-installed', async () => {
   const dest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
   return fs.existsSync(dest)
 })
+ipcMain.handle('count-tokens', async (_e, text) => {
+  const t = getTokenizer()
+  if (t) { try { return t.countTokens(text) } catch (_) {} }
+  return Math.ceil((text || '').length / 4)
+})
+
+const SCRATCH_PATH = path.join(os.homedir(), '.claude', 'draftflow-scratch.md')
+
+ipcMain.handle('read-scratch', async () => {
+  try { return fs.existsSync(SCRATCH_PATH) ? fs.readFileSync(SCRATCH_PATH, 'utf8') : '' } catch (_) { return '' }
+})
+
+ipcMain.handle('write-scratch', async (_e, content) => {
+  try {
+    fs.mkdirSync(path.dirname(SCRATCH_PATH), { recursive: true })
+    fs.writeFileSync(SCRATCH_PATH, content, 'utf8')
+    return true
+  } catch (_) { return false }
+})
+
+ipcMain.handle('save-scratch-as', async (_e, { content, defaultDir }) => {
+  const r = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(defaultDir || os.homedir(), 'scratchpad.md'),
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'txt'] }],
+  })
+  if (r.canceled || !r.filePath) return null
+  fs.writeFileSync(r.filePath, content, 'utf8')
+  return { filePath: r.filePath }
+})
+
 ipcMain.handle('load-settings',  async ()             => loadSettings())
 ipcMain.handle('save-settings',  async (_e, s)        => persistSettings(s))
 ipcMain.handle('copy-to-clipboard',   async (_e, text) => { clipboard.writeText(text); return true })

@@ -19,6 +19,11 @@ contextBridge.exposeInMainWorld('api', {
   copyToClipboard:   (text)      => ipcRenderer.invoke('copy-to-clipboard', text),
   readFromClipboard: ()          => ipcRenderer.invoke('read-from-clipboard'),
 
+  countTokens:   (text) => ipcRenderer.invoke('count-tokens', text),
+  readScratch:   ()      => ipcRenderer.invoke('read-scratch'),
+  writeScratch:  (content) => ipcRenderer.invoke('write-scratch', content),
+  saveScratchAs: (args)  => ipcRenderer.invoke('save-scratch-as', args),
+
   onMenuAction:   (cb) => ipcRenderer.on('menu-action', (_e, action) => cb(action)),
   onBridgeOpen:   (cb) => ipcRenderer.on('bridge-open', (_e, filePath) => cb(filePath)),
   sendBack:       (content) => ipcRenderer.invoke('send-back', content),
