@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('api', {
   copyToClipboard:   (text)      => ipcRenderer.invoke('copy-to-clipboard', text),
   readFromClipboard: ()          => ipcRenderer.invoke('read-from-clipboard'),
 
+  findProjectRoot: (filePath) => ipcRenderer.invoke('find-project-root', filePath),
+  scanProjectTree: (root)     => ipcRenderer.invoke('scan-project-tree', root),
+
   countTokens:   (text) => ipcRenderer.invoke('count-tokens', text),
   readScratch:   ()      => ipcRenderer.invoke('read-scratch'),
   writeScratch:  (content) => ipcRenderer.invoke('write-scratch', content),

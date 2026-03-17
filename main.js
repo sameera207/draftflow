@@ -60,12 +60,50 @@ function persistSettings (s) {
 
 function addRecentFile (filePath) {
   if (!settings.recentFiles) settings.recentFiles = []
+  let preview = ''
+  try {
+    const content = fs.readFileSync(filePath, 'utf8')
+    const firstLine = content.split('\n').find(l => l.trim().length > 0) || ''
+    preview = firstLine.trim().slice(0, 80)
+  } catch (_) {}
+  const entry = { path: filePath, openedAt: new Date().toISOString(), preview }
   settings.recentFiles = [
-    filePath,
-    ...settings.recentFiles.filter(f => f !== filePath)
-  ].slice(0, 10)
+    entry,
+    ...settings.recentFiles.filter(f => (typeof f === 'string' ? f : f.path) !== filePath)
+  ].slice(0, 8)
   settings.lastOpenFile = filePath
   persistSettings(settings)
+}
+
+function findProjectRoot (filePath) {
+  let dir = path.dirname(filePath)
+  while (dir !== path.parse(dir).root) {
+    if (fs.existsSync(path.join(dir, 'CLAUDE.md'))) return { root: dir, found: true }
+    dir = path.dirname(dir)
+  }
+  return { root: path.dirname(filePath), found: false }
+}
+
+function scanProjectTree (root) {
+  const hasClaude = fs.existsSync(path.join(root, 'CLAUDE.md'))
+  let entries
+  try { entries = fs.readdirSync(root, { withFileTypes: true }) } catch (_) { return { root, files: [], dirs: [], hasClaude } }
+  const files = []
+  const dirs  = []
+  for (const ent of entries) {
+    if (ent.name.startsWith('.') || ent.name === 'node_modules') continue
+    if (ent.isDirectory()) {
+      let subEntries
+      try { subEntries = fs.readdirSync(path.join(root, ent.name), { withFileTypes: true }) } catch (_) { subEntries = [] }
+      const subFiles = subEntries
+        .filter(e => !e.isDirectory() && /\.md$/i.test(e.name))
+        .map(e => e.name)
+      if (subFiles.length) dirs.push({ name: ent.name, files: subFiles })
+    } else if (/\.md$/i.test(ent.name) && ent.name !== 'CLAUDE.md') {
+      files.push(ent.name)
+    }
+  }
+  return { root, files, dirs, hasClaude }
 }
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
@@ -250,7 +288,9 @@ ipcMain.handle('new-file',  async () => true)
 
 ipcMain.handle('read-file', async (_e, filePath) => {
   try {
-    return { filePath, content: fs.readFileSync(filePath, 'utf8') }
+    const content = fs.readFileSync(filePath, 'utf8')
+    addRecentFile(filePath)
+    return { filePath, content }
   } catch (_) { return null }
 })
 
@@ -334,6 +374,9 @@ ipcMain.handle('save-scratch-as', async (_e, { content, defaultDir }) => {
   fs.writeFileSync(r.filePath, content, 'utf8')
   return { filePath: r.filePath }
 })
+
+ipcMain.handle('find-project-root', async (_e, filePath) => findProjectRoot(filePath))
+ipcMain.handle('scan-project-tree', async (_e, root)    => scanProjectTree(root))
 
 ipcMain.handle('load-settings',  async ()             => loadSettings())
 ipcMain.handle('save-settings',  async (_e, s)        => persistSettings(s))

@@ -159,6 +159,36 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 
 .tree-empty { font-size: 13px; color: var(--text-faint); padding: 8px 14px; font-style: italic; }
 
+/* ── RECENT ITEMS ── */
+.recent-item { display:flex; flex-direction:column; padding:5px 14px 4px; cursor:pointer; border-left:2px solid transparent; transition:background .1s; }
+.recent-item:hover { background:var(--surface2); }
+.recent-item.active { background:var(--accent-bg); border-left-color:var(--accent); }
+.recent-item-row { display:flex; align-items:center; gap:7px; }
+.recent-item-name { font-size:14px; color:var(--text-dim); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.recent-item.active .recent-item-name { color:var(--accent); }
+.recent-item-time { font-size:11px; color:var(--text-faint); flex-shrink:0; }
+.recent-item-preview { font-size:11px; color:var(--text-faint); padding-left:18px; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── PROJECT TREE ── */
+.tree-claude-pin { display:flex; align-items:center; gap:7px; padding:5px 14px; cursor:pointer; color:var(--accent2); font-size:14px; border-left:2px solid transparent; transition:background .1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tree-claude-pin:hover { background:var(--surface2); }
+.tree-claude-pin.active { background:var(--agent-bg); border-left-color:var(--accent2); }
+.tree-folder { display:flex; align-items:center; gap:7px; padding:4px 14px; cursor:pointer; color:var(--text-dim); font-size:13px; transition:background .1s; white-space:nowrap; }
+.tree-folder:hover { background:var(--surface2); color:var(--text); }
+.fold-arrow { font-size:9px; flex-shrink:0; transition:transform .15s; display:inline-block; }
+.tree-folder.collapsed .fold-arrow { transform:rotate(-90deg); }
+.tree-subfile { display:flex; align-items:center; gap:7px; padding:4px 14px 4px 28px; cursor:pointer; color:var(--text-faint); font-size:13px; border-left:2px solid transparent; transition:background .1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tree-subfile:hover { background:var(--surface2); color:var(--text-dim); }
+.tree-subfile.active { background:var(--accent-bg); border-left-color:var(--accent); color:var(--accent); }
+.tree-no-project { font-size:12px; color:var(--text-faint); padding:5px 14px; font-style:italic; }
+
+/* ── SECTION TOGGLES ── */
+.tree-group-label { cursor:pointer; }
+.tree-group-label:hover { color:var(--text-dim); }
+.section-arrow { font-size:9px; transition:transform .15s; display:inline-block; margin-left:2px; }
+.tree-group-label.section-collapsed .section-arrow { transform:rotate(-90deg); }
+.section-body.collapsed { display:none; }
+
 /* ── EDITOR AREA ── */
 .editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; min-width: 0; }
 
@@ -647,12 +677,14 @@ html.light .token-danger { color: #b04030 !important; }
       <span class="panel-title">Files</span>
     </div>
     <div class="file-tree" id="file-tree">
-      <div class="tree-group-label">recent</div>
-      <div id="recent-list"></div>
-      <div class="tree-group-label">skills</div>
-      <div id="skills-list"></div>
-      <div class="tree-group-label">agents</div>
-      <div id="agents-list"></div>
+      <div class="tree-group-label" data-target="recent-body">recent <span class="section-arrow">▾</span></div>
+      <div class="section-body" id="recent-body"><div id="recent-list"></div></div>
+      <div class="tree-group-label" data-target="project-body">project <span class="section-arrow">▾</span></div>
+      <div class="section-body" id="project-body"><div id="project-list"></div></div>
+      <div class="tree-group-label" data-target="skills-body">skills <span class="section-arrow">▾</span></div>
+      <div class="section-body" id="skills-body"><div id="skills-list"></div></div>
+      <div class="tree-group-label" data-target="agents-body">agents <span class="section-arrow">▾</span></div>
+      <div class="section-body" id="agents-body"><div id="agents-list"></div></div>
     </div>
   </div>
 
@@ -980,15 +1012,14 @@ async function handleOpen () {
   editorEl.value = result.content
   currentFilePath = result.filePath
   setDirty(false)
-  settings.recentFiles = dedupRecent(result.filePath, settings.recentFiles)
-  settings.lastOpenFile = result.filePath
-  await window.api.saveSettings(settings)
+  settings = await window.api.loadSettings()
   updateTitlebar()
   updateEditorPath()
   renderFilePanel()
   updatePreview()
   updateWordCount()
   updateTokenCount()
+  await updateProjectTree(result.filePath)
 }
 
 async function handleSave () {
@@ -1005,9 +1036,7 @@ async function handleSaveAs () {
   const result = await window.api.saveFileAs({ content: editorEl.value })
   if (!result) return
   currentFilePath = result.filePath
-  settings.recentFiles = dedupRecent(result.filePath, settings.recentFiles)
-  settings.lastOpenFile = result.filePath
-  await window.api.saveSettings(settings)
+  settings = await window.api.loadSettings()
   setDirty(false)
   updateTitlebar()
   updateEditorPath()
@@ -1027,11 +1056,9 @@ async function openFilePath (filePath) {
   updatePreview()
   updateWordCount()
   updateTokenCount()
+  settings = await window.api.loadSettings()
   renderFilePanel()
-}
-
-function dedupRecent (filePath, list) {
-  return [filePath, ...(list || []).filter(f => f !== filePath)].slice(0, 10)
+  await updateProjectTree(filePath)
 }
 
 // ─────────────────────────────────────────────
@@ -1073,6 +1100,7 @@ function updateEditorPath () {
 // ─────────────────────────────────────────────
 function renderFilePanel () {
   renderRecent()
+  renderProjectTree()
   renderSkillsList()
   renderAgentsList()
 }
@@ -1085,14 +1113,21 @@ function renderRecent () {
     return
   }
   el.innerHTML = files.map(f => {
-    const name   = f.split('/').pop()
-    const active = f === currentFilePath
-    return `<div class="tree-item ${active ? 'active' : ''}" data-path="${escAttr(f)}" title="${escAttr(f)}">
-      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
-      <span class="tree-item-name">${escHtml(name)}</span>
+    const entry  = typeof f === 'string' ? { path: f, openedAt: null, preview: '' } : f
+    const name   = entry.path.split('/').pop()
+    const active = entry.path === currentFilePath
+    const time   = entry.openedAt ? relativeTime(entry.openedAt) : ''
+    const preview = entry.preview || ''
+    return `<div class="recent-item ${active ? 'active' : ''}" data-path="${escAttr(entry.path)}" title="${escAttr(entry.path)}">
+      <div class="recent-item-row">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+        <span class="recent-item-name">${escHtml(name)}</span>
+        ${time ? `<span class="recent-item-time">${escHtml(time)}</span>` : ''}
+      </div>
+      ${preview ? `<div class="recent-item-preview">${escHtml(preview)}</div>` : ''}
     </div>`
   }).join('')
-  el.querySelectorAll('.tree-item').forEach(item => {
+  el.querySelectorAll('.recent-item').forEach(item => {
     item.addEventListener('click', () => openFilePath(item.dataset.path))
   })
 }
@@ -1130,6 +1165,96 @@ function renderAgentsList () {
     </div>`).join('')
   el.querySelectorAll('.tree-item[data-path]').forEach(item => {
     if (item.dataset.path) item.addEventListener('click', () => openFilePath(item.dataset.path))
+  })
+}
+
+// ─────────────────────────────────────────────
+// Project tree
+// ─────────────────────────────────────────────
+let projectTreeData  = null
+let currentProjectRoot = null
+let folderExpanded   = {}
+
+async function updateProjectTree (filePath) {
+  if (!window.api || !window.api.findProjectRoot) return
+  const { root, found } = await window.api.findProjectRoot(filePath)
+  if (root !== currentProjectRoot) {
+    currentProjectRoot = root
+    folderExpanded = {}
+  }
+  const tree = await window.api.scanProjectTree(root)
+  tree.found = found
+  projectTreeData = tree
+  // _docs/ expanded by default
+  if (tree.dirs.some(d => d.name === '_docs') && folderExpanded['_docs'] === undefined) {
+    folderExpanded['_docs'] = true
+  }
+  renderProjectTree()
+}
+
+function renderProjectTree () {
+  const el = document.getElementById('project-list')
+  if (!el) return
+  if (!projectTreeData) {
+    el.innerHTML = '<div class="tree-empty">open a file to see project</div>'
+    return
+  }
+  const { root, files, dirs, hasClaude, found } = projectTreeData
+  let html = ''
+
+  if (!found) {
+    html += '<div class="tree-no-project">(no CLAUDE.md found)</div>'
+  }
+
+  if (hasClaude) {
+    const claudePath = root + '/CLAUDE.md'
+    const active = claudePath === currentFilePath
+    html += `<div class="tree-claude-pin ${active ? 'active' : ''}" data-path="${escAttr(claudePath)}">
+      <span style="font-size:10px;flex-shrink:0">◆</span>
+      <span class="tree-item-name">CLAUDE.md</span>
+    </div>`
+  }
+
+  for (const dir of dirs) {
+    const expanded = !!folderExpanded[dir.name]
+    html += `<div class="tree-folder ${expanded ? '' : 'collapsed'}" data-folder="${escAttr(dir.name)}">
+      <span class="fold-arrow">▾</span>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 4h10v6H1z"/><path d="M1 4V3h3l1 1"/></svg>
+      <span>${escHtml(dir.name)}/</span>
+    </div>`
+    if (expanded) {
+      for (const file of dir.files) {
+        const fp = root + '/' + dir.name + '/' + file
+        const active = fp === currentFilePath
+        html += `<div class="tree-subfile ${active ? 'active' : ''}" data-path="${escAttr(fp)}" title="${escAttr(fp)}">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+          <span>${escHtml(file)}</span>
+        </div>`
+      }
+    }
+  }
+
+  for (const file of files) {
+    const fp = root + '/' + file
+    const active = fp === currentFilePath
+    html += `<div class="tree-item ${active ? 'active' : ''}" data-path="${escAttr(fp)}" title="${escAttr(fp)}">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+      <span class="tree-item-name">${escHtml(file)}</span>
+    </div>`
+  }
+
+  if (!html) html = '<div class="tree-empty">no markdown files</div>'
+  el.innerHTML = html
+
+  el.querySelectorAll('[data-path]').forEach(item => {
+    item.addEventListener('click', () => openFilePath(item.dataset.path))
+  })
+  el.querySelectorAll('.tree-folder[data-folder]').forEach(row => {
+    row.addEventListener('click', () => {
+      const name = row.dataset.folder
+      folderExpanded[name] = !folderExpanded[name]
+      renderProjectTree()
+    })
   })
 }
 
@@ -1814,6 +1939,14 @@ document.getElementById('btn-files').addEventListener('click', () => {
   document.getElementById('file-panel').classList.toggle('collapsed', !panelOpen)
 })
 
+document.querySelectorAll('.tree-group-label[data-target]').forEach(header => {
+  header.addEventListener('click', () => {
+    const body = document.getElementById(header.dataset.target)
+    const collapsed = body.classList.toggle('collapsed')
+    header.classList.toggle('section-collapsed', collapsed)
+  })
+})
+
 // ─────────────────────────────────────────────
 // Titlebar buttons
 // ─────────────────────────────────────────────
@@ -1869,6 +2002,15 @@ function showToast (msg, type) {
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
+function relativeTime (iso) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const h = diff / 3600000
+  if (h < 1)  return 'just now'
+  if (h < 24) return `${Math.floor(h)}h ago`
+  if (h < 48) return 'yesterday'
+  return `${Math.floor(h / 24)}d ago`
+}
+
 function escHtml (str) {
   return String(str)
     .replace(/&/g, '&amp;')
