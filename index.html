@@ -333,6 +333,107 @@ textarea#editor::placeholder { color: var(--text-faint); }
 
 .suggest-no-results { padding: 14px 12px; font-size: 13px; color: var(--text-faint); text-align: center; }
 
+/* ── SEARCH PALETTE (⌘P) ── */
+.palette-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.55);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 80px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s;
+}
+.palette-overlay.open { opacity: 1; pointer-events: all; }
+
+.palette-modal {
+  width: 580px; max-width: calc(100vw - 40px);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7);
+  overflow: hidden;
+  transform: translateY(-8px);
+  transition: transform .15s;
+}
+.palette-overlay.open .palette-modal { transform: translateY(0); }
+
+.palette-input-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.palette-input-icon { color: var(--text-faint); flex-shrink: 0; }
+.palette-input {
+  flex: 1; background: none; border: none; outline: none;
+  font-family: var(--mono); font-size: 14px; color: var(--text);
+  caret-color: var(--accent);
+}
+.palette-input::placeholder { color: var(--text-faint); }
+.palette-kbd {
+  font-size: 11px; color: var(--text-faint);
+  border: 1px solid var(--border2); border-radius: 3px;
+  padding: 1px 5px; flex-shrink: 0;
+}
+
+.palette-results {
+  max-height: 360px; overflow-y: auto;
+  padding: 4px 0 6px;
+}
+.palette-results::-webkit-scrollbar { width: 3px; }
+.palette-results::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.palette-section-label {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-faint); padding: 8px 16px 3px;
+}
+.palette-section-label:not(:first-child) { margin-top: 2px; }
+
+.palette-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 16px; cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background .08s;
+}
+.palette-item:hover,
+.palette-item.active { background: var(--surface3); border-left-color: var(--accent); }
+.palette-item.active.skill-item { border-left-color: var(--accent); }
+.palette-item.active.agent-item { border-left-color: var(--accent2); }
+
+.palette-item-icon {
+  width: 24px; height: 24px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 11px;
+}
+.palette-item-icon.file { background: var(--surface); color: var(--text-dim); }
+.palette-item-icon.skill { background: var(--accent-bg); color: var(--accent); }
+.palette-item-icon.agent { background: var(--agent-bg); color: var(--accent2); }
+
+.palette-item-body { flex: 1; min-width: 0; }
+.palette-item-name { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.palette-item-name mark { background: none; color: var(--accent); font-weight: 600; }
+.palette-item-path { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.palette-item-preview { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.palette-item-preview mark { background: none; color: var(--accent); font-weight: 500; }
+
+.palette-item-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.palette-item-badge {
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 2px;
+}
+.palette-item-badge.project { background: var(--surface); color: var(--text-faint); }
+.palette-item-badge.skill   { background: var(--accent-bg); color: var(--accent); }
+.palette-item-badge.agent   { background: var(--agent-bg); color: var(--accent2); }
+.palette-item-time { font-size: 10px; color: var(--text-faint); }
+
+.palette-empty { padding: 24px 16px; font-size: 13px; color: var(--text-faint); text-align: center; font-style: italic; }
+
+/* search button in panel header */
+.panel-search-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); padding: 2px 5px; border-radius: 3px;
+  font-size: 13px; line-height: 1; transition: color .15s, background .15s;
+}
+.panel-search-btn:hover { color: var(--text); background: var(--surface3); }
+
 .suggest-footer {
   padding: 6px 12px;
   border-top: 1px solid var(--border);
@@ -675,6 +776,9 @@ html.light .token-danger { color: #b04030 !important; }
   <div class="file-panel" id="file-panel">
     <div class="panel-header">
       <span class="panel-title">Files</span>
+      <button class="panel-search-btn" id="btn-palette" title="Search files (⌘P)">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="5.5" r="3.8"/><line x1="8.5" y1="8.5" x2="12" y2="12"/></svg>
+      </button>
     </div>
     <div class="file-tree" id="file-tree">
       <div class="tree-group-label" data-target="recent-body">recent <span class="section-arrow">▾</span></div>
@@ -866,6 +970,20 @@ html.light .token-danger { color: #b04030 !important; }
   </div>
 </div>
 
+<!-- SEARCH PALETTE -->
+<div class="palette-overlay" id="palette-overlay">
+  <div class="palette-modal" id="palette-modal">
+    <div class="palette-input-row">
+      <span class="palette-input-icon">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="5.5" r="3.8"/><line x1="8.5" y1="8.5" x2="12" y2="12"/></svg>
+      </span>
+      <input class="palette-input" id="palette-input" type="text" placeholder="Search files and skills…" autocomplete="off" spellcheck="false" />
+      <kbd class="palette-kbd">esc</kbd>
+    </div>
+    <div class="palette-results" id="palette-results"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">
   <div class="toast-dot skill" id="toast-dot"></div>
@@ -900,6 +1018,7 @@ document.addEventListener('keydown', e => {
   if (mod && e.key === 'o') { e.preventDefault(); handleOpen() }
   if (mod && e.key === 'n') { e.preventDefault(); handleNew() }
   if (mod && e.key === 'k') { e.preventDefault(); toggleScratch() }
+  if (mod && e.key === 'p') { e.preventDefault(); openPalette() }
 })
 
 // ─────────────────────────────────────────────
@@ -2019,6 +2138,206 @@ function escHtml (str) {
     .replace(/"/g, '&quot;')
 }
 function escAttr (str) { return escHtml(str) }
+
+// ─────────────────────────────────────────────
+// Search Palette (⌘P)
+// ─────────────────────────────────────────────
+let paletteOpen   = false
+let paletteItems  = []
+let paletteIdx    = 0
+
+function buildPaletteItems () {
+  const items = []
+
+  // Recent files
+  const recents = settings.recentFiles || []
+  for (const f of recents) {
+    const entry = typeof f === 'string' ? { path: f, openedAt: null, preview: '' } : f
+    items.push({
+      type:    'recent',
+      name:    entry.path.split('/').pop(),
+      path:    entry.path,
+      preview: entry.preview || '',
+      time:    entry.openedAt ? relativeTime(entry.openedAt) : ''
+    })
+  }
+
+  // Project files (flat list from tree)
+  if (projectTreeData) {
+    const { root, files, dirs, hasClaude } = projectTreeData
+    if (hasClaude) {
+      const fp = root + '/CLAUDE.md'
+      if (!items.some(i => i.path === fp)) {
+        items.push({ type: 'project', name: 'CLAUDE.md', path: fp, preview: '' })
+      }
+    }
+    for (const file of (files || [])) {
+      const fp = root + '/' + file
+      if (!items.some(i => i.path === fp)) {
+        items.push({ type: 'project', name: file, path: fp, preview: '' })
+      }
+    }
+    for (const dir of (dirs || [])) {
+      for (const file of (dir.files || [])) {
+        const fp = root + '/' + dir.name + '/' + file
+        if (!items.some(i => i.path === fp)) {
+          items.push({ type: 'project', name: file, path: fp, preview: '' })
+        }
+      }
+    }
+  }
+
+  // Skills
+  for (const s of (skillsData.skills || [])) {
+    items.push({ type: 'skill', name: s.name, path: s.path || '', preview: s.desc || '', tag: s.tag })
+  }
+
+  // Agents
+  for (const a of (skillsData.agents || [])) {
+    items.push({ type: 'agent', name: a.name, path: a.path || '', preview: a.desc || '', tag: a.tag })
+  }
+
+  return items
+}
+
+function paletteMatch (query, items) {
+  if (!query) return items
+  const q = query.toLowerCase()
+  return items.filter(it =>
+    it.name.toLowerCase().includes(q) ||
+    it.path.toLowerCase().includes(q) ||
+    it.preview.toLowerCase().includes(q)
+  )
+}
+
+function paletteHL (text, query) {
+  if (!query || !text) return escHtml(text)
+  const i = text.toLowerCase().indexOf(query.toLowerCase())
+  if (i === -1) return escHtml(text)
+  return escHtml(text.slice(0, i)) +
+    '<mark>' + escHtml(text.slice(i, i + query.length)) + '</mark>' +
+    escHtml(text.slice(i + query.length))
+}
+
+function renderPalette () {
+  const query   = document.getElementById('palette-input').value.trim()
+  const matched = paletteMatch(query, paletteItems)
+  const el      = document.getElementById('palette-results')
+
+  if (!matched.length) {
+    el.innerHTML = '<div class="palette-empty">no results</div>'
+    paletteIdx = 0
+    return
+  }
+
+  // Group: recents / project / skills+agents
+  const recents  = matched.filter(i => i.type === 'recent')
+  const projects = matched.filter(i => i.type === 'project')
+  const skills   = matched.filter(i => i.type === 'skill' || i.type === 'agent')
+
+  let html = ''
+  let globalIdx = 0
+
+  function renderGroup (label, group) {
+    if (!group.length) return
+    html += `<div class="palette-section-label">${label}</div>`
+    for (const it of group) {
+      const active  = globalIdx === paletteIdx
+      const isSk    = it.type === 'skill'
+      const isAg    = it.type === 'agent'
+      const iconCls = isSk ? 'skill' : isAg ? 'agent' : 'file'
+      const iconChar = isSk ? '#' : isAg ? '@' : '❑'
+      const badgeType = (isSk || isAg) ? it.type : (it.type === 'project' ? 'project' : '')
+      const badgeLabel = isSk ? 'skill' : isAg ? 'agent' : it.type === 'project' ? 'project' : ''
+
+      html += `<div class="palette-item ${active ? 'active' : ''} ${isSk ? 'skill-item' : isAg ? 'agent-item' : ''}" data-idx="${globalIdx}" data-path="${escAttr(it.path)}">
+        <div class="palette-item-icon ${iconCls}">${iconChar}</div>
+        <div class="palette-item-body">
+          <div class="palette-item-name">${paletteHL(it.name, query)}</div>
+          ${it.path ? `<div class="palette-item-path">${escHtml(it.path)}</div>` : ''}
+          ${it.preview ? `<div class="palette-item-preview">${paletteHL(it.preview, query)}</div>` : ''}
+        </div>
+        <div class="palette-item-meta">
+          ${badgeLabel ? `<span class="palette-item-badge ${badgeType}">${badgeLabel}</span>` : ''}
+          ${it.time ? `<span class="palette-item-time">${escHtml(it.time)}</span>` : ''}
+        </div>
+      </div>`
+      globalIdx++
+    }
+  }
+
+  renderGroup('recent', recents)
+  renderGroup('project', projects)
+  renderGroup('skills & agents', skills)
+
+  el.innerHTML = html
+
+  // Clamp index
+  const total = recents.length + projects.length + skills.length
+  if (paletteIdx >= total) paletteIdx = Math.max(0, total - 1)
+
+  // Bind click
+  el.querySelectorAll('.palette-item').forEach(row => {
+    row.addEventListener('mouseenter', () => {
+      paletteIdx = parseInt(row.dataset.idx, 10)
+      renderPalette()
+    })
+    row.addEventListener('click', () => {
+      const p = row.dataset.path
+      if (p) { closePalette(); openFilePath(p) }
+    })
+  })
+
+  // Scroll active into view
+  const activeEl = el.querySelector('.palette-item.active')
+  if (activeEl) activeEl.scrollIntoView({ block: 'nearest' })
+}
+
+function openPalette () {
+  paletteItems = buildPaletteItems()
+  paletteIdx   = 0
+  const overlay = document.getElementById('palette-overlay')
+  const input   = document.getElementById('palette-input')
+  overlay.classList.add('open')
+  paletteOpen = true
+  input.value = ''
+  renderPalette()
+  // defer focus so the keydown that triggered open doesn't land in the input
+  requestAnimationFrame(() => input.focus())
+}
+
+function closePalette () {
+  document.getElementById('palette-overlay').classList.remove('open')
+  paletteOpen = false
+}
+
+// Input: filter on each keystroke
+document.getElementById('palette-input').addEventListener('input', () => {
+  paletteIdx = 0
+  renderPalette()
+})
+
+// Keyboard navigation inside palette
+document.getElementById('palette-input').addEventListener('keydown', e => {
+  const matched = paletteMatch(e.target.value.trim(), paletteItems)
+  const total   = matched.length
+  if (e.key === 'ArrowDown')  { e.preventDefault(); paletteIdx = Math.min(paletteIdx + 1, total - 1); renderPalette() }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); paletteIdx = Math.max(paletteIdx - 1, 0); renderPalette() }
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    const item = matched[paletteIdx]
+    if (item && item.path) { closePalette(); openFilePath(item.path) }
+  }
+  if (e.key === 'Escape') { e.preventDefault(); closePalette() }
+})
+
+// Close on overlay backdrop click
+document.getElementById('palette-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('palette-overlay')) closePalette()
+})
+
+// Sidebar search button
+document.getElementById('btn-palette').addEventListener('click', openPalette)
 
 // ─────────────────────────────────────────────
 // Boot
