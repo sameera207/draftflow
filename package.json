@@ -10,6 +10,7 @@
     "dev": "electron . --inspect"
   },
   "dependencies": {
+    "@anthropic-ai/tokenizer": "^0.0.4",
     "marked": "^12.0.0"
   },
   "devDependencies": {
