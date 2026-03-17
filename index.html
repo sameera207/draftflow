@@ -491,39 +491,33 @@ html.light .token-danger { color: #b04030 !important; }
 /* ── SKILL PREVIEW PANE ── */
 .skill-preview-pane {
   position: absolute;
-  width: 260px; max-height: 300px;
-  background: var(--surface2);
+  width: 300px;
+  background: var(--surface);
   border: 1px solid var(--border2);
-  border-radius: 7px;
-  box-shadow: 0 10px 40px rgba(0,0,0,.55);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
   z-index: 101; display: flex; flex-direction: column;
   opacity: 0; pointer-events: none;
   transition: opacity .12s;
+  overflow: hidden;
 }
 .skill-preview-pane.visible { opacity: 1; }
 .skill-preview-header {
-  padding: 7px 11px 5px; border-bottom: 1px solid var(--border);
+  padding: 10px 13px 9px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  background: var(--surface2);
 }
-.skill-preview-title { font-size: 13px; color: var(--text); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skill-preview-title { font-size: 13px; color: var(--text); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: .01em; }
 .skill-preview-badge {
-  font-size: 10px; padding: 1px 5px; border-radius: 2px; flex-shrink: 0;
-  background: var(--accent-bg); color: var(--accent); letter-spacing: .06em; text-transform: uppercase;
+  font-size: 10px; padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+  background: var(--accent-bg); color: var(--accent); letter-spacing: .08em; text-transform: uppercase;
 }
 .skill-preview-badge.agent { background: var(--agent-bg); color: var(--accent2); }
 .skill-preview-body {
-  flex: 1; overflow-y: auto; padding: 10px 12px;
-  font-size: 12px; color: var(--text-dim); line-height: 1.6;
+  padding: 12px 14px 13px;
+  font-size: 13px; color: var(--text-dim); line-height: 1.7;
+  font-family: var(--serif);
 }
-.skill-preview-body::-webkit-scrollbar { width: 3px; }
-.skill-preview-body::-webkit-scrollbar-thumb { background: var(--border2); }
-.skill-preview-body h1,.skill-preview-body h2,.skill-preview-body h3 { font-size: 12px; color: var(--text); margin: 8px 0 3px; font-weight: 500; }
-.skill-preview-body p { margin-bottom: 5px; }
-.skill-preview-body code { font-family: var(--mono); font-size: 11px; background: var(--surface3); color: var(--accent); padding: 0 3px; border-radius: 2px; }
-.skill-preview-body pre { background: var(--surface3); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 5px 0; }
-.skill-preview-body pre code { background: none; color: var(--text); }
-.skill-preview-body ul,.skill-preview-body ol { padding-left: 1.2em; margin-bottom: 5px; }
-.skill-preview-body li { margin-bottom: 2px; }
 
 /* ── SCRATCHPAD ── */
 .scratchpad-pane {
@@ -1497,29 +1491,15 @@ const skillPreviewPane  = document.getElementById('skill-preview-pane')
 const skillPreviewTitle = document.getElementById('skill-preview-title')
 const skillPreviewBadge = document.getElementById('skill-preview-badge')
 const skillPreviewBody  = document.getElementById('skill-preview-body')
-const skillContentCache = {}
-
-async function showSkillPreview (item) {
+function showSkillPreview (item) {
   if (!item) { hideSkillPreview(); return }
 
   skillPreviewTitle.textContent = item.name
   skillPreviewBadge.className   = 'skill-preview-badge' + (activeMode === 'agent' ? ' agent' : '')
   skillPreviewBadge.textContent = activeMode === 'agent' ? 'agent' : 'skill'
 
-  const cacheKey = item.path || item.name
-  if (!skillContentCache[cacheKey]) {
-    if (item.path && window.api) {
-      const result = await window.api.readFile(item.path + '/SKILL.md')
-      skillContentCache[cacheKey] = result ? result.content : (item.desc || '_(no content)_')
-    } else {
-      skillContentCache[cacheKey] = item.desc || '_(no content)_'
-    }
-  }
-
-  const html = typeof marked !== 'undefined'
-    ? marked.parse(skillContentCache[cacheKey])
-    : `<pre>${escHtml(skillContentCache[cacheKey])}</pre>`
-  skillPreviewBody.innerHTML = html
+  const desc = item.desc || ''
+  skillPreviewBody.textContent = desc || '—'
 
   positionSkillPreview()
   skillPreviewPane.classList.add('visible')
@@ -1532,7 +1512,7 @@ function hideSkillPreview () {
 function positionSkillPreview () {
   const popRect  = popup.getBoundingClientRect()
   const panRect  = editorPan.getBoundingClientRect()
-  const PANE_W   = 264
+  const PANE_W   = 304
   const spaceRight = panRect.right - popRect.right - 8
   const spaceLeft  = popRect.left  - panRect.left  - 8
 

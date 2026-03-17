@@ -6,6 +6,9 @@ A minimal Markdown editor built for Claude Code workflows. Write prompts, skills
 
 - **Markdown editor** with live split-pane preview
 - **Skill & agent autocomplete** — type `#skill` or `/agent` to fuzzy-search your indexed skills, with descriptions shown inline
+- **Skill preview pane** — hover over an autocomplete item to see the skill description without leaving the editor
+- **Real-time token counter** — live token count for your current draft powered by `@anthropic-ai/tokenizer`
+- **Scratchpad** — persistent scratch space for notes, snippets, and ideas separate from your main draft
 - **Claude Code bridge** — open files directly from Claude Code, edit them, and send the result back in one click
 - **Light / dark theme** toggle
 - **Recent files** panel
