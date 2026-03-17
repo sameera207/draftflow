@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <script src="./node_modules/marked/lib/marked.umd.js"></script>
+<script src="./node_modules/mermaid/dist/mermaid.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -481,6 +482,9 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .preview-pane td { color: var(--text-dim); }
 .mention-skill { color: var(--accent); background: var(--accent-bg); padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 12px; }
 .mention-agent { color: var(--accent2); background: var(--agent-bg); padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 12px; }
+.mermaid-diagram { margin: 1em 0; text-align: center; }
+.mermaid-diagram svg { max-width: 100%; height: auto; }
+.mermaid-error { color: var(--text-faint); font-family: var(--mono); font-size: 12px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; margin: 1em 0; }
 
 /* ── STATUSBAR ── */
 .statusbar {
@@ -1065,6 +1069,7 @@ async function init () {
         { name: 'internal-comms',  tag: 'examples', desc: 'Company communication templates' },
       ]
     }
+    initMermaid()
     renderFilePanel()
     updateStatusbar()
     return
@@ -1524,6 +1529,8 @@ function applyTheme (theme) {
   document.documentElement.classList.toggle('light', isLight)
   document.getElementById('theme-icon-dark').style.display  = isLight ? 'none'  : ''
   document.getElementById('theme-icon-light').style.display = isLight ? ''      : 'none'
+  initMermaid()
+  updatePreview()
 }
 
 document.getElementById('btn-theme').addEventListener('click', async () => {
@@ -1532,6 +1539,41 @@ document.getElementById('btn-theme').addEventListener('click', async () => {
   settings.theme = next
   if (window.api) await window.api.saveSettings(settings)
 })
+
+// ─────────────────────────────────────────────
+// Mermaid
+// ─────────────────────────────────────────────
+let mermaidCounter = 0
+let mermaidDebounceTimer = null
+
+function getMermaidTheme () {
+  return document.documentElement.classList.contains('light') ? 'default' : 'dark'
+}
+
+function initMermaid () {
+  if (typeof mermaid === 'undefined') return
+  mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme(), securityLevel: 'loose' })
+}
+
+async function renderMermaidBlocks () {
+  if (typeof mermaid === 'undefined') return
+  const pane = document.getElementById('preview-pane')
+  const blocks = pane.querySelectorAll('pre code.language-mermaid')
+  for (const code of blocks) {
+    const pre = code.parentElement
+    const definition = code.textContent
+    const id = `mermaid-diagram-${++mermaidCounter}`
+    const wrapper = document.createElement('div')
+    wrapper.className = 'mermaid-diagram'
+    try {
+      const { svg } = await mermaid.render(id, definition)
+      wrapper.innerHTML = svg
+    } catch (_) {
+      wrapper.innerHTML = '<div class="mermaid-error">⚠ Invalid Mermaid syntax</div>'
+    }
+    pre.replaceWith(wrapper)
+  }
+}
 
 // ─────────────────────────────────────────────
 // Markdown Preview
@@ -1554,6 +1596,9 @@ function updatePreview () {
     `<span class="mention-agent">@${n}</span>`)
 
   pane.innerHTML = html
+
+  clearTimeout(mermaidDebounceTimer)
+  mermaidDebounceTimer = setTimeout(renderMermaidBlocks, 350)
 }
 
 // ─────────────────────────────────────────────
