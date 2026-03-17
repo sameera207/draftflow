@@ -1,0 +1,38 @@
+[
+  {
+    "tag": ".md",
+    "title": "Clean markdown editor",
+    "description": "Distraction-free writing with live split-pane preview. No toolbars, no clutter — just text.",
+    "image": null
+  },
+  {
+    "tag": "#skill",
+    "title": "Skill autocomplete",
+    "description": "Type # to fuzzy-search your installed Claude Code skills inline as you write.",
+    "image": null
+  },
+  {
+    "tag": "/df",
+    "title": "Claude Code bridge",
+    "description": "Open files directly from Claude Code, edit them, and send the result back with one click.",
+    "image": null
+  },
+  {
+    "tag": "⌘C",
+    "title": "Send to Claude",
+    "description": "Copy your draft as a ready-to-paste prompt for Claude Code. No browser tabs, no friction.",
+    "image": null
+  },
+  {
+    "tag": "~/",
+    "title": "File browser",
+    "description": "Browse and preview existing markdown files — skills, CLAUDE.md, docs — without leaving the app.",
+    "image": null
+  },
+  {
+    "tag": "⌥",
+    "title": "Light & dark themes",
+    "description": "Follows your system preference, or toggle manually. Easy on the eyes either way.",
+    "image": null
+  }
+]
