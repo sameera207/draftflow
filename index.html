@@ -482,6 +482,104 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
 .btn.primary:hover { opacity: .85; }
 
+/* ── TOKEN COUNT ── */
+.token-warn   { color: #c8a96d !important; }
+.token-danger { color: #d4736a !important; }
+html.light .token-warn   { color: #9a7030 !important; }
+html.light .token-danger { color: #b04030 !important; }
+
+/* ── SKILL PREVIEW PANE ── */
+.skill-preview-pane {
+  position: absolute;
+  width: 260px; max-height: 300px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.55);
+  z-index: 101; display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s;
+}
+.skill-preview-pane.visible { opacity: 1; }
+.skill-preview-header {
+  padding: 7px 11px 5px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.skill-preview-title { font-size: 13px; color: var(--text); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skill-preview-badge {
+  font-size: 10px; padding: 1px 5px; border-radius: 2px; flex-shrink: 0;
+  background: var(--accent-bg); color: var(--accent); letter-spacing: .06em; text-transform: uppercase;
+}
+.skill-preview-badge.agent { background: var(--agent-bg); color: var(--accent2); }
+.skill-preview-body {
+  flex: 1; overflow-y: auto; padding: 10px 12px;
+  font-size: 12px; color: var(--text-dim); line-height: 1.6;
+}
+.skill-preview-body::-webkit-scrollbar { width: 3px; }
+.skill-preview-body::-webkit-scrollbar-thumb { background: var(--border2); }
+.skill-preview-body h1,.skill-preview-body h2,.skill-preview-body h3 { font-size: 12px; color: var(--text); margin: 8px 0 3px; font-weight: 500; }
+.skill-preview-body p { margin-bottom: 5px; }
+.skill-preview-body code { font-family: var(--mono); font-size: 11px; background: var(--surface3); color: var(--accent); padding: 0 3px; border-radius: 2px; }
+.skill-preview-body pre { background: var(--surface3); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 5px 0; }
+.skill-preview-body pre code { background: none; color: var(--text); }
+.skill-preview-body ul,.skill-preview-body ol { padding-left: 1.2em; margin-bottom: 5px; }
+.skill-preview-body li { margin-bottom: 2px; }
+
+/* ── SCRATCHPAD ── */
+.scratchpad-pane {
+  width: 0; overflow: hidden; flex-shrink: 0;
+  background: var(--surface); border-left: 0px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width .2s ease, border-left-width .01s ease;
+}
+.scratchpad-pane.open { width: 230px; border-left-width: 1px; }
+.scratch-header {
+  padding: 7px 10px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.scratch-pip {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--text-faint); flex-shrink: 0; transition: background .25s;
+}
+.scratch-pip.has-content { background: var(--accent); }
+.scratch-title { font-size: 12px; color: var(--text-dim); flex: 1; letter-spacing: .04em; white-space: nowrap; }
+.scratch-clear {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-family: var(--mono); font-size: 11px;
+  padding: 2px 5px; border-radius: 3px; transition: color .15s; white-space: nowrap;
+}
+.scratch-clear:hover { color: var(--text-dim); }
+.scratch-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 14px; line-height: 1;
+  padding: 1px 4px; border-radius: 3px; transition: color .15s;
+}
+.scratch-close:hover { color: var(--text); }
+.scratch-textarea {
+  flex: 1; background: transparent; border: none; outline: none; resize: none;
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  line-height: 1.7; padding: 12px 12px 12px;
+  caret-color: var(--accent);
+}
+.scratch-textarea::placeholder { color: var(--text-faint); font-style: italic; }
+.scratch-footer {
+  padding: 5px 10px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.scratch-status { font-size: 11px; color: var(--text-faint); flex: 1; letter-spacing: .03em; }
+.scratch-save-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-family: var(--mono); font-size: 11px;
+  padding: 2px 5px; border-radius: 3px; white-space: nowrap; transition: color .15s;
+}
+.scratch-save-btn:hover { color: var(--accent); }
+/* Toolbar pip */
+.scratch-toolbar-pip {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--text-faint); display: inline-block; transition: background .25s;
+}
+.scratch-toolbar-pip.has-content { background: var(--accent); }
+
 /* ── TOAST ── */
 .toast {
   position: fixed; bottom: 38px; left: 50%; transform: translateX(-50%) translateY(8px);
@@ -527,6 +625,10 @@ textarea#editor::placeholder { color: var(--text-faint); }
       <svg id="theme-icon-dark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M13.5 10.5A6 6 0 0 1 5.5 2.5a6 6 0 1 0 8 8z"/></svg>
       <svg id="theme-icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" style="display:none"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M11.5 4.5l1.4-1.4M3.1 12.9l1.4-1.4"/></svg>
       theme
+    </button>
+    <button class="tb-btn" id="btn-scratch" title="Scratchpad (⌘K)">
+      <span class="scratch-toolbar-pip" id="scratch-toolbar-pip"></span>
+      scratchpad
     </button>
     <button class="tb-btn accent" id="btn-settings">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M11.5 4.5l1.4-1.4M3.1 12.9l1.4-1.4"/></svg>
@@ -599,15 +701,41 @@ textarea#editor::placeholder { color: var(--text-faint); }
             <span><kbd>esc</kbd> dismiss</span>
           </div>
         </div>
+
+        <!-- SKILL PREVIEW PANE -->
+        <div class="skill-preview-pane" id="skill-preview-pane">
+          <div class="skill-preview-header">
+            <span class="skill-preview-title" id="skill-preview-title"></span>
+            <span class="skill-preview-badge" id="skill-preview-badge">skill</span>
+          </div>
+          <div class="skill-preview-body" id="skill-preview-body"></div>
+        </div>
       </div>
 
       <!-- PREVIEW -->
       <div class="preview-pane" id="preview-pane"></div>
+
+      <!-- SCRATCHPAD -->
+      <div class="scratchpad-pane" id="scratchpad-pane">
+        <div class="scratch-header">
+          <div class="scratch-pip" id="scratch-pip"></div>
+          <span class="scratch-title">scratchpad</span>
+          <button class="scratch-clear" id="scratch-clear">clear</button>
+          <button class="scratch-close" id="scratch-close">✕</button>
+        </div>
+        <textarea class="scratch-textarea" id="scratch-textarea"
+          placeholder="jot notes, ideas, context…" spellcheck="false"></textarea>
+        <div class="scratch-footer">
+          <span class="scratch-status" id="scratch-status">auto-saved</span>
+          <button class="scratch-save-btn" id="scratch-save-btn">save as file…</button>
+        </div>
+      </div>
     </div>
 
     <div class="statusbar">
       <span class="status-item live"><span class="status-dot"></span> markdown</span>
       <span class="status-item" id="word-count">0 words</span>
+      <span class="status-item" id="token-count">~0 tokens</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
       <button class="sendback-btn" id="btn-sendback" style="display:none">
@@ -651,6 +779,24 @@ textarea#editor::placeholder { color: var(--text-faint); }
             Install the <code style="font-family:var(--mono);color:var(--accent);background:rgba(200,169,109,.1);padding:1px 5px;border-radius:3px;">/df</code> command so Claude Code can open files in Draftflow.
           </div>
           <button class="btn primary" id="btn-install-df" style="flex-shrink:0;">Install /df command</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Token count thresholds</div>
+        <div style="display:flex;align-items:center;gap:16px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);">
+            warn at
+            <input id="token-warn-input" type="number" value="4000" min="100" max="100000" step="100"
+              style="width:72px;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 7px;font-family:var(--mono);font-size:13px;outline:none;" />
+            tokens
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);">
+            danger at
+            <input id="token-danger-input" type="number" value="8000" min="100" max="200000" step="100"
+              style="width:72px;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 7px;font-family:var(--mono);font-size:13px;outline:none;" />
+            tokens
+          </div>
         </div>
       </div>
 
@@ -727,6 +873,7 @@ document.addEventListener('keydown', e => {
   if (mod && e.key === 's') { e.preventDefault(); e.shiftKey ? handleSaveAs() : handleSave() }
   if (mod && e.key === 'o') { e.preventDefault(); handleOpen() }
   if (mod && e.key === 'n') { e.preventDefault(); handleNew() }
+  if (mod && e.key === 'k') { e.preventDefault(); toggleScratch() }
 })
 
 // ─────────────────────────────────────────────
@@ -785,6 +932,11 @@ async function init () {
   renderFilePanel()
   updateStatusbar()
 
+  tokenWarnThreshold   = settings.tokenWarnThreshold   || 4000
+  tokenDangerThreshold = settings.tokenDangerThreshold || 8000
+
+  await initScratch()
+
   if (settings.lastOpenFile) {
     await openFilePath(settings.lastOpenFile)
   }
@@ -820,6 +972,7 @@ async function handleNew () {
   updateEditorPath()
   updatePreview()
   updateWordCount()
+  updateTokenCount()
 }
 
 async function handleOpen () {
@@ -841,6 +994,7 @@ async function handleOpen () {
   renderFilePanel()
   updatePreview()
   updateWordCount()
+  updateTokenCount()
 }
 
 async function handleSave () {
@@ -878,6 +1032,7 @@ async function openFilePath (filePath) {
   updateEditorPath()
   updatePreview()
   updateWordCount()
+  updateTokenCount()
   renderFilePanel()
 }
 
@@ -998,6 +1153,31 @@ function updateWordCount () {
   document.getElementById('word-count').textContent = words + ' words'
 }
 
+// ─────────────────────────────────────────────
+// Token counter
+// ─────────────────────────────────────────────
+let tokenWarnThreshold   = 4000
+let tokenDangerThreshold = 8000
+let tokenDebounceTimer   = null
+
+function updateTokenCount () {
+  clearTimeout(tokenDebounceTimer)
+  tokenDebounceTimer = setTimeout(async () => {
+    const text = editorEl.value
+    let count
+    if (window.api && window.api.countTokens) {
+      count = await window.api.countTokens(text)
+    } else {
+      count = Math.ceil(text.length / 4)
+    }
+    const el = document.getElementById('token-count')
+    el.textContent = `~${count.toLocaleString()} tokens`
+    el.className = 'status-item'
+    if (count >= tokenDangerThreshold) el.classList.add('token-danger')
+    else if (count >= tokenWarnThreshold) el.classList.add('token-warn')
+  }, 150)
+}
+
 function updateCursorPos () {
   const val   = editorEl.value
   const pos   = editorEl.selectionStart
@@ -1018,6 +1198,7 @@ const editorEl = document.getElementById('editor')
 editorEl.addEventListener('input', () => {
   if (!isDirty) setDirty(true)
   updateWordCount()
+  updateTokenCount()
   if (currentMode !== 'edit') updatePreview()
   handleSuggestion()
 })
@@ -1206,21 +1387,31 @@ function showPopup (query, mode) {
   popup.classList.add('visible')
   popupVisible = true
 
+  // Show preview for first result
+  if (lastResults.length) showSkillPreview(lastResults[0])
+  else hideSkillPreview()
+
   sugList.querySelectorAll('.suggest-item').forEach(el => {
-    el.addEventListener('mouseenter', () => { activeIdx = +el.dataset.idx; renderPopupActive() })
-    el.addEventListener('click',      () => insertSuggestion(lastResults[+el.dataset.idx]))
+    el.addEventListener('mouseenter', () => {
+      activeIdx = +el.dataset.idx
+      renderPopupActive()
+      showSkillPreview(lastResults[activeIdx])
+    })
+    el.addEventListener('click', () => insertSuggestion(lastResults[+el.dataset.idx]))
   })
 }
 
 function hidePopup () {
   popup.classList.remove('visible')
   popupVisible = false
+  hideSkillPreview()
 }
 
 function renderPopupActive () {
   sugList.querySelectorAll('.suggest-item').forEach((el, i) => {
     el.classList.toggle('active', i === activeIdx)
   })
+  showSkillPreview(lastResults[activeIdx])
 }
 
 function insertSuggestion (item) {
@@ -1300,6 +1491,66 @@ function getCaretCoords (textarea) {
 }
 
 // ─────────────────────────────────────────────
+// Skill preview pane
+// ─────────────────────────────────────────────
+const skillPreviewPane  = document.getElementById('skill-preview-pane')
+const skillPreviewTitle = document.getElementById('skill-preview-title')
+const skillPreviewBadge = document.getElementById('skill-preview-badge')
+const skillPreviewBody  = document.getElementById('skill-preview-body')
+const skillContentCache = {}
+
+async function showSkillPreview (item) {
+  if (!item) { hideSkillPreview(); return }
+
+  skillPreviewTitle.textContent = item.name
+  skillPreviewBadge.className   = 'skill-preview-badge' + (activeMode === 'agent' ? ' agent' : '')
+  skillPreviewBadge.textContent = activeMode === 'agent' ? 'agent' : 'skill'
+
+  const cacheKey = item.path || item.name
+  if (!skillContentCache[cacheKey]) {
+    if (item.path && window.api) {
+      const result = await window.api.readFile(item.path + '/SKILL.md')
+      skillContentCache[cacheKey] = result ? result.content : (item.desc || '_(no content)_')
+    } else {
+      skillContentCache[cacheKey] = item.desc || '_(no content)_'
+    }
+  }
+
+  const html = typeof marked !== 'undefined'
+    ? marked.parse(skillContentCache[cacheKey])
+    : `<pre>${escHtml(skillContentCache[cacheKey])}</pre>`
+  skillPreviewBody.innerHTML = html
+
+  positionSkillPreview()
+  skillPreviewPane.classList.add('visible')
+}
+
+function hideSkillPreview () {
+  skillPreviewPane.classList.remove('visible')
+}
+
+function positionSkillPreview () {
+  const popRect  = popup.getBoundingClientRect()
+  const panRect  = editorPan.getBoundingClientRect()
+  const PANE_W   = 264
+  const spaceRight = panRect.right - popRect.right - 8
+  const spaceLeft  = popRect.left  - panRect.left  - 8
+
+  let left
+  if (spaceRight >= PANE_W) {
+    left = popRect.right - panRect.left + 4
+  } else if (spaceLeft >= PANE_W) {
+    left = popRect.left - panRect.left - PANE_W - 4
+  } else {
+    left = popRect.right - panRect.left + 4
+  }
+
+  const top = parseInt(popup.style.top, 10) || 0
+  skillPreviewPane.style.top  = top + 'px'
+  skillPreviewPane.style.left = left + 'px'
+}
+
+// ─────────────────────────────────────────────
 // Fuzzy search
 // ─────────────────────────────────────────────
 function fuzzyScore (query, target) {
@@ -1344,11 +1595,104 @@ function search (query, mode) {
 }
 
 // ─────────────────────────────────────────────
+// Scratchpad
+// ─────────────────────────────────────────────
+const scratchPane     = document.getElementById('scratchpad-pane')
+const scratchTextarea = document.getElementById('scratch-textarea')
+const scratchStatus   = document.getElementById('scratch-status')
+const scratchPip      = document.getElementById('scratch-pip')
+const scratchTbPip    = document.getElementById('scratch-toolbar-pip')
+let   scratchOpen     = false
+let   scratchSaveTimer = null
+
+function openScratch () {
+  scratchOpen = true
+  scratchPane.classList.add('open')
+  setTimeout(() => scratchTextarea.focus(), 220)
+}
+
+function closeScratch () {
+  scratchOpen = false
+  scratchPane.classList.remove('open')
+  editorEl.focus()
+}
+
+function toggleScratch () {
+  if (scratchOpen) closeScratch(); else openScratch()
+}
+
+function updateScratchPips () {
+  const has = scratchTextarea.value.trim().length > 0
+  scratchPip.classList.toggle('has-content', has)
+  scratchTbPip.classList.toggle('has-content', has)
+}
+
+async function saveScratchAs () {
+  const content = scratchTextarea.value
+  if (!content.trim()) { showToast('Scratchpad is empty', 'error'); return }
+  const defaultDir = currentFilePath
+    ? currentFilePath.slice(0, currentFilePath.lastIndexOf('/'))
+    : ''
+  if (window.api && window.api.saveScratchAs) {
+    const result = await window.api.saveScratchAs({ content, defaultDir })
+    if (!result) return
+    const short = result.filePath.replace(/^\/Users\/[^/]+/, '~')
+    showToast(`saved to ${short}`, 'skill')
+  }
+}
+
+async function initScratch () {
+  let content = ''
+  if (window.api && window.api.readScratch) {
+    content = await window.api.readScratch()
+  } else {
+    content = localStorage.getItem('draftflow-scratch') || ''
+  }
+  scratchTextarea.value = content
+  updateScratchPips()
+  if (content) scratchStatus.textContent = 'auto-saved'
+}
+
+scratchTextarea.addEventListener('input', () => {
+  updateScratchPips()
+  clearTimeout(scratchSaveTimer)
+  scratchStatus.textContent = 'saving…'
+  scratchSaveTimer = setTimeout(async () => {
+    if (window.api && window.api.writeScratch) {
+      await window.api.writeScratch(scratchTextarea.value)
+    } else {
+      localStorage.setItem('draftflow-scratch', scratchTextarea.value)
+    }
+    scratchStatus.textContent = 'auto-saved'
+  }, 800)
+})
+
+scratchTextarea.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey
+  if (mod && e.key === 'k') { e.preventDefault(); toggleScratch() }
+  if (mod && e.key === 's') { e.preventDefault(); saveScratchAs() }
+})
+
+document.getElementById('scratch-clear').addEventListener('click', () => {
+  scratchTextarea.value = ''
+  updateScratchPips()
+  scratchStatus.textContent = 'cleared'
+  if (window.api && window.api.writeScratch) window.api.writeScratch('')
+  else localStorage.setItem('draftflow-scratch', '')
+})
+
+document.getElementById('scratch-close').addEventListener('click', closeScratch)
+document.getElementById('btn-scratch').addEventListener('click', toggleScratch)
+document.getElementById('scratch-save-btn').addEventListener('click', saveScratchAs)
+
+// ─────────────────────────────────────────────
 // Settings modal
 // ─────────────────────────────────────────────
 function openSettings () {
   pendingSettings = JSON.parse(JSON.stringify(settings))
   renderSettingsPanel()
+  document.getElementById('token-warn-input').value   = pendingSettings.tokenWarnThreshold   || 4000
+  document.getElementById('token-danger-input').value = pendingSettings.tokenDangerThreshold || 8000
   document.getElementById('settings-overlay').classList.add('visible')
 }
 
@@ -1443,6 +1787,11 @@ document.getElementById('settings-save').addEventListener('click', async () => {
     pendingSettings.skillPaths.push({ path: pendingInput, tag: 'user' })
     document.getElementById('add-path-input').value = ''
   }
+  // Save token thresholds
+  const warnVal   = parseInt(document.getElementById('token-warn-input').value,   10)
+  const dangerVal = parseInt(document.getElementById('token-danger-input').value, 10)
+  if (!isNaN(warnVal)   && warnVal   > 0) { pendingSettings.tokenWarnThreshold   = warnVal;   tokenWarnThreshold   = warnVal }
+  if (!isNaN(dangerVal) && dangerVal > 0) { pendingSettings.tokenDangerThreshold = dangerVal; tokenDangerThreshold = dangerVal }
   settings = pendingSettings
   await window.api.saveSettings(settings)
   await rescanSkills()
