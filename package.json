@@ -1,23 +1,41 @@
 {
   "name": "draftflow",
-  "productName": "Draftflow",
-  "version": "1.0.0",
-  "description": "Minimal Markdown editor for Claude Code workflows",
-  "homepage": "https://draftflow.dev",
+  "version": "0.1.0",
+  "description": "Markdown editor for Claude Code workflows",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --inspect"
-  },
-  "dependencies": {
-    "@anthropic-ai/tokenizer": "^0.0.4",
-    "marked": "^12.0.0",
-    "mermaid": "^11.13.0"
+    "dev": "electron --inspect .",
+    "dist": "electron-builder --mac"
   },
   "devDependencies": {
-    "electron": "^34.0.0"
+    "electron": "^34.5.8",
+    "electron-builder": "^25.1.8"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT"
+  "build": {
+    "appId": "dev.draftflow.app",
+    "productName": "Draftflow",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Draftflow ${version}",
+      "backgroundColor": "#f7f4ef"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "sameera207",
+      "repo": "draftflow"
+    }
+  }
 }

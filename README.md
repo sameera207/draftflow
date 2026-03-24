@@ -15,6 +15,13 @@ A minimal Markdown editor built for Claude Code workflows. Write prompts, skills
 - **Recent files** panel
 - Configurable scan paths for skills and agents
 
+## Install
+
+    brew install --cask sameera207/draftflow/draftflow
+
+> **First launch:** macOS may block the app. Go to System Settings → Privacy & Security
+> → click "Open Anyway", or run `xattr -cr /Applications/Draftflow.app` in terminal.
+
 ## Getting started
 
 ### Requirements
@@ -22,7 +29,7 @@ A minimal Markdown editor built for Claude Code workflows. Write prompts, skills
 - [Node.js](https://nodejs.org) 18+
 - macOS (primary target; Linux/Windows may work)
 
-### Install & run
+### Build from source
 
 ```bash
 git clone https://github.com/sameera207/draftflow.git
