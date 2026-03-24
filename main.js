@@ -14,6 +14,10 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
     { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
     { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' },
   ]},
+  { label: 'View', submenu: [
+    { label: 'Toggle Developer Tools', accelerator: 'Alt+CmdOrCtrl+I',
+      click: (_, win) => win && win.webContents.toggleDevTools() },
+  ]},
 ]))
 
 let mainWindow
@@ -316,6 +320,56 @@ ipcMain.handle('scan-directory', async (_e, dirPath) => {
 })
 
 ipcMain.handle('scan-skills',    async (_e, paths)    => scanSkillPaths(paths))
+
+ipcMain.handle('suggest-skills', async (_e, { prompt, skills, agents, apiKey }) => {
+  if (!apiKey) return []
+  try {
+    const system = 'You are a skill routing assistant. Given a user\'s prompt and a list of available skills and agents, return the most relevant ones as a JSON array. Only include items genuinely useful for the prompt. Return an empty array if nothing is relevant.'
+
+    const skillLines  = (skills  || []).map(s => `- id: "${s.dirName}" | name: "${s.name}" | description: "${s.desc || ''}"`)
+    const agentLines  = (agents  || []).map(a => `- id: "${a.dirName}" | name: "${a.name}" | description: "${a.desc || ''}"`)
+    const userMessage = `User prompt: "${prompt}"
+
+Available skills:
+${skillLines.join('\n')}
+
+Available agents:
+${agentLines.join('\n')}
+
+Return a JSON array. Each item: { type: "skill"|"agent", id, name, confidence: 0.0-1.0, reason: "max 6 words" }
+Example: [{"type":"skill","id":"xlsx","name":"Excel / Spreadsheet","confidence":0.92,"reason":"Spreadsheet data extraction task"}]
+Return only valid JSON. No explanation, no markdown.`
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      body: JSON.stringify({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        system,
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+    })
+
+    const data = await response.json()
+    let text = data?.content?.[0]?.text || '[]'
+
+    // Strip markdown fences if the model wraps output in ```json ... ```
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+
+    return JSON.parse(text)
+  } catch (_) {
+    return []
+  }
+})
+
+ipcMain.handle('read-skill-content', async (_e, skillPath) => {
+  try { return fs.readFileSync(path.join(skillPath, 'SKILL.md'), 'utf8') } catch (_) { return '' }
+})
 
 ipcMain.handle('send-back', async (_e, content) => {
   const bridgeDir   = path.join(os.homedir(), '.claude', 'editor-bridge')

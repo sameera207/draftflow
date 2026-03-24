@@ -32,4 +32,6 @@ contextBridge.exposeInMainWorld('api', {
   sendBack:       (content) => ipcRenderer.invoke('send-back', content),
   installDfCommand:   () => ipcRenderer.invoke('install-df-command'),
   dfCommandInstalled: () => ipcRenderer.invoke('df-command-installed'),
+  suggestSkills:    (data)      => ipcRenderer.invoke('suggest-skills', data),
+  readSkillContent: (skillPath) => ipcRenderer.invoke('read-skill-content', skillPath),
 })

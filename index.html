@@ -512,7 +512,7 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .claude-btn svg { width: 12px; height: 12px; }
 
 .sendback-btn {
-  position: absolute; right: 170px;
+  position: absolute; right: 14px;
   top: 50%; transform: translateY(-50%);
   background: var(--agent-bg); color: var(--accent2);
   border: 1px solid rgba(127,191,168,.2); cursor: pointer;
@@ -724,6 +724,38 @@ html.light .token-danger { color: #b04030 !important; }
 .toast-dot.skill { background: var(--accent); }
 .toast-dot.agent { background: var(--accent2); }
 .toast-dot.error { background: var(--red); }
+
+/* ── SEND BAR ── */
+.send-bar { border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.send-bar-attach {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 14px; border-bottom: 1px solid var(--border);
+}
+.send-bar-attach-label {
+  font-size: 10px; color: var(--text-faint); letter-spacing: .1em;
+  text-transform: uppercase; white-space: nowrap; margin-right: 2px;
+}
+.send-bar-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; height: 34px;
+}
+.attach-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px 3px 7px; border-radius: 12px;
+  font-size: 11px; font-family: var(--mono);
+  border: 1px solid var(--border); cursor: pointer; user-select: none;
+  transition: background .1s, border-color .1s, color .1s;
+}
+.attach-chip.selected {
+  background: rgba(100,180,140,.1); border-color: rgba(100,180,140,.4); color: var(--text);
+}
+.attach-chip.selected .chip-indicator { background: #64b48c; border-color: #64b48c; }
+.attach-chip:not(.selected) { background: var(--surface2); color: var(--text-faint); }
+.attach-chip:not(.selected) .chip-indicator { background: transparent; border-color: var(--border2); }
+.chip-indicator {
+  width: 7px; height: 7px; border-radius: 50%; border: 1px solid; flex-shrink: 0; transition: background .1s;
+}
+.send-token-count { font-size: 12px; color: var(--text-faint); font-family: var(--mono); letter-spacing: .02em; }
 </style>
 </head>
 <body>
@@ -822,6 +854,21 @@ html.light .token-danger { color: #b04030 !important; }
         <textarea id="editor" spellcheck="false"
           placeholder="start writing…  ( type # for skills, @ for agents )"></textarea>
 
+        <!-- SEND BAR -->
+        <div id="send-bar" class="send-bar">
+          <div id="send-bar-attach" class="send-bar-attach" style="display:none;">
+            <span class="send-bar-attach-label">attach skills</span>
+            <div id="attach-chips"></div>
+          </div>
+          <div class="send-bar-actions">
+            <span id="send-token-count" class="send-token-count">~0 tokens</span>
+            <button class="claude-btn" id="btn-copy-claude">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
+              copy to Claude
+            </button>
+          </div>
+        </div>
+
         <!-- SUGGESTION POPUP -->
         <div class="suggest-popup" id="suggest-popup">
           <div class="suggest-header">
@@ -869,14 +916,14 @@ html.light .token-danger { color: #b04030 !important; }
     <div class="statusbar">
       <span class="status-item live"><span class="status-dot"></span> markdown</span>
       <span class="status-item" id="word-count">0 words</span>
-      <span class="status-item" id="token-count">~0 tokens</span>
+      <span class="status-item" id="token-count" style="display:none">~0 tokens</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
       <button class="sendback-btn" id="btn-sendback" style="display:none">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7H2M6 3L2 7l4 4"/></svg>
         send back
       </button>
-      <button class="claude-btn" id="btn-claude">
+      <button class="claude-btn" id="btn-claude" style="display:none">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
         send to claude
       </button>
@@ -932,6 +979,16 @@ html.light .token-danger { color: #b04030 !important; }
             tokens
           </div>
         </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Anthropic API key</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
+          <input id="settings-api-key" type="password" placeholder="sk-ant-…"
+            style="flex:1;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 9px;font-family:var(--mono);font-size:12px;outline:none;" spellcheck="false" autocomplete="off" />
+          <button id="settings-api-key-toggle" class="btn" style="flex-shrink:0;font-size:11px;padding:3px 9px;" title="Show / hide">show</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;padding:0 2px;">Used for contextual skill suggestions. Leave blank to disable.</div>
       </div>
 
       <div class="settings-section">
@@ -1008,6 +1065,121 @@ let pendingSettings = null   // settings being edited in modal
 let panelOpen       = true
 let currentMode     = 'edit'
 let toastTimer      = null
+
+// ─────────────────────────────────────────────
+// Skill Suggestion Service
+// ─────────────────────────────────────────────
+let suggestionDebounceTimer = null
+let suggestionCache = new Map()
+let dismissedSuggestions = new Set()  // dismissed chip ids in current session
+let currentSuggestions = []
+let attachedSkillIds = new Set()
+const skillContentCache = new Map()
+
+async function getSkillSuggestions(prompt) {
+  if (!prompt || prompt.trim().length < 10) return []
+
+  const cacheKey = prompt.trim().toLowerCase().slice(0, 200)
+  if (suggestionCache.has(cacheKey)) return suggestionCache.get(cacheKey)
+
+  const apiKey = settings.anthropic && settings.anthropic.apiKey
+  if (!apiKey) return []  // NullAdapter behavior
+
+  const skills = (skillsData.skills || []).map(s => ({
+    dirName: s.dirName,
+    name: s.name,
+    desc: s.desc || ''
+  }))
+  const agents = (skillsData.agents || []).map(a => ({
+    dirName: a.dirName,
+    name: a.name,
+    desc: a.desc || ''
+  }))
+
+  try {
+    const results = await window.api.suggestSkills({ prompt, skills, agents, apiKey })
+    const CONFIDENCE_THRESHOLD = (settings.suggestions && settings.suggestions.confidenceThreshold) || 0.6
+    const MAX_SUGGESTIONS = (settings.suggestions && settings.suggestions.maxSuggestions) || 3
+
+    const filtered = (Array.isArray(results) ? results : [])
+      .filter(s => s.confidence >= CONFIDENCE_THRESHOLD)
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, MAX_SUGGESTIONS)
+
+    suggestionCache.set(cacheKey, filtered)
+    return filtered
+  } catch (_) {
+    return []
+  }
+}
+
+function getSkillByIdFromData(id, type) {
+  if (type === 'agent') return (skillsData.agents || []).find(a => a.dirName === id)
+  return (skillsData.skills || []).find(s => s.dirName === id)
+}
+
+async function getSkillContent(skillPath) {
+  if (skillContentCache.has(skillPath)) return skillContentCache.get(skillPath)
+  const content = (window.api && window.api.readSkillContent) ? await window.api.readSkillContent(skillPath) : ''
+  skillContentCache.set(skillPath, content)
+  return content
+}
+
+function renderAttachChips() {
+  const chipsEl = document.getElementById('attach-chips')
+  if (!chipsEl) return
+  chipsEl.innerHTML = currentSuggestions.map(s => {
+    const selected = attachedSkillIds.has(s.id)
+    return `<span class="attach-chip ${selected ? 'selected' : ''}" data-id="${escHtml(s.id)}" data-type="${escHtml(s.type)}" title="${escHtml(s.reason || '')}">
+      <span class="chip-indicator"></span>${escHtml(s.name)}</span>`
+  }).join('')
+  chipsEl.querySelectorAll('.attach-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const id = chip.dataset.id
+      if (attachedSkillIds.has(id)) attachedSkillIds.delete(id)
+      else attachedSkillIds.add(id)
+      renderAttachChips()
+      updateSendTokenCount()
+    })
+  })
+}
+
+function renderSendBar(suggestions) {
+  currentSuggestions = suggestions
+  attachedSkillIds = new Set(suggestions.map(s => s.id))
+  const attachRow = document.getElementById('send-bar-attach')
+  if (attachRow) attachRow.style.display = suggestions.length > 0 ? 'flex' : 'none'
+  renderAttachChips()
+  updateSendTokenCount()
+}
+
+async function updateSendTokenCount() {
+  const el = document.getElementById('send-token-count')
+  if (!el) return
+  const text = editorEl.value
+  const total = window.api && window.api.countTokens
+    ? await window.api.countTokens(text)
+    : Math.ceil(text.length / 4)
+  const n = attachedSkillIds.size
+  el.textContent = n > 0
+    ? `~${total.toLocaleString()} tokens with ${n} skill${n > 1 ? 's' : ''}`
+    : `~${total.toLocaleString()} tokens`
+  el.className = 'send-token-count'
+  if (total >= 4000) el.classList.add('token-danger')
+  else if (total >= 2000) el.classList.add('token-warn')
+}
+
+function onEditorInputForSuggestions(value) {
+  clearTimeout(suggestionDebounceTimer)
+  if (!value || value.trim().length < 10) {
+    renderSendBar([])
+    return
+  }
+  suggestionDebounceTimer = setTimeout(async () => {
+    const suggestions = await getSkillSuggestions(value)
+    renderSendBar(suggestions)
+  }, 600)
+}
 
 // Expose to main process for dirty-close handling
 window.__isDirty     = false
@@ -1123,6 +1295,9 @@ async function handleNew () {
   updatePreview()
   updateWordCount()
   updateTokenCount()
+  dismissedSuggestions.clear()
+  suggestionCache.clear()
+  renderSuggestionChips([])
 }
 
 async function handleOpen () {
@@ -1442,8 +1617,10 @@ editorEl.addEventListener('input', () => {
   if (!isDirty) setDirty(true)
   updateWordCount()
   updateTokenCount()
+  updateSendTokenCount()
   if (currentMode !== 'edit') updatePreview()
   handleSuggestion()
+  onEditorInputForSuggestions(editorEl.value)
 })
 
 editorEl.addEventListener('keydown', e => {
@@ -1962,6 +2139,9 @@ function openSettings () {
   renderSettingsPanel()
   document.getElementById('token-warn-input').value   = pendingSettings.tokenWarnThreshold   || 4000
   document.getElementById('token-danger-input').value = pendingSettings.tokenDangerThreshold || 8000
+  document.getElementById('settings-api-key').value   = (pendingSettings.anthropic && pendingSettings.anthropic.apiKey) || ''
+  document.getElementById('settings-api-key').type    = 'password'
+  document.getElementById('settings-api-key-toggle').textContent = 'show'
   document.getElementById('settings-overlay').classList.add('visible')
 }
 
@@ -2016,6 +2196,12 @@ function updateSettingsSummary () {
 document.getElementById('btn-settings').addEventListener('click', openSettings)
 document.getElementById('settings-close').addEventListener('click', closeSettings)
 document.getElementById('settings-cancel').addEventListener('click', closeSettings)
+document.getElementById('settings-api-key-toggle').addEventListener('click', () => {
+  const input = document.getElementById('settings-api-key')
+  const btn   = document.getElementById('settings-api-key-toggle')
+  if (input.type === 'password') { input.type = 'text';     btn.textContent = 'hide' }
+  else                           { input.type = 'password'; btn.textContent = 'show' }
+})
 document.getElementById('settings-overlay').addEventListener('click', e => {
   if (e.target.id === 'settings-overlay') closeSettings()
 })
@@ -2061,6 +2247,13 @@ document.getElementById('settings-save').addEventListener('click', async () => {
   const dangerVal = parseInt(document.getElementById('token-danger-input').value, 10)
   if (!isNaN(warnVal)   && warnVal   > 0) { pendingSettings.tokenWarnThreshold   = warnVal;   tokenWarnThreshold   = warnVal }
   if (!isNaN(dangerVal) && dangerVal > 0) { pendingSettings.tokenDangerThreshold = dangerVal; tokenDangerThreshold = dangerVal }
+  const apiKeyVal = document.getElementById('settings-api-key').value.trim()
+  if (apiKeyVal) {
+    if (!pendingSettings.anthropic) pendingSettings.anthropic = {}
+    pendingSettings.anthropic.apiKey = apiKeyVal
+  } else {
+    if (pendingSettings.anthropic) delete pendingSettings.anthropic.apiKey
+  }
   settings = pendingSettings
   await window.api.saveSettings(settings)
   await rescanSkills()
@@ -2140,15 +2333,32 @@ document.getElementById('btn-claude').addEventListener('click', async () => {
   const text = editorEl.value
   if (!text.trim()) { showToast('Nothing to copy', 'error'); return }
   try {
-    if (window.api) {
-      await window.api.copyToClipboard(text)
-    } else {
-      await navigator.clipboard.writeText(text)
-    }
+    if (window.api) await window.api.copyToClipboard(text)
+    else await navigator.clipboard.writeText(text)
     showToast('Copied · ready to paste into Claude Code', 'skill')
-  } catch (_) {
-    showToast('Copy failed', 'error')
-  }
+  } catch (_) { showToast('Copy failed', 'error') }
+})
+
+document.getElementById('btn-copy-claude').addEventListener('click', async () => {
+  const promptText = editorEl.value
+  if (!promptText.trim()) { showToast('Nothing to copy', 'error'); return }
+  try {
+    let payload = promptText
+    if (attachedSkillIds.size > 0) {
+      const names = []
+      for (const id of attachedSkillIds) {
+        const s = currentSuggestions.find(s => s.id === id)
+        if (!s) continue
+        const item = getSkillByIdFromData(id, s.type)
+        names.push(item ? item.name : s.name)
+      }
+      if (names.length > 0) payload = promptText + '\n\nuse skills: ' + names.join(', ')
+    }
+    if (window.api) await window.api.copyToClipboard(payload)
+    else await navigator.clipboard.writeText(payload)
+    const n = attachedSkillIds.size
+    showToast(n > 0 ? `Copied with ${n} skill${n > 1 ? 's' : ''}` : 'Copied · ready to paste into Claude Code', 'skill')
+  } catch (_) { showToast('Copy failed', 'error') }
 })
 
 // ─────────────────────────────────────────────

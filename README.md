@@ -6,6 +6,7 @@ A minimal Markdown editor built for Claude Code workflows. Write prompts, skills
 
 - **Markdown editor** with live split-pane preview
 - **Skill & agent autocomplete** — type `#skill` or `/agent` to fuzzy-search your indexed skills, with descriptions shown inline
+- **Contextual skill suggestions** — as you type, the editor proactively surfaces relevant skills and agents as chips below the prompt (no trigger syntax required)
 - **Skill preview pane** — hover over an autocomplete item to see the skill description without leaving the editor
 - **Real-time token counter** — live token count for your current draft powered by `@anthropic-ai/tokenizer`
 - **Scratchpad** — persistent scratch space for notes, snippets, and ideas separate from your main draft
@@ -51,6 +52,32 @@ Draftflow integrates with Claude Code via a custom URL scheme and a shared file 
 1. Open Draftflow settings and click **Install /df command**
    (copies `commands/df.md` → `~/.claude/commands/df.md`)
 2. In any Claude Code session, type `/df` to start a bridge session.
+
+## Contextual skill suggestions
+
+Draftflow can proactively suggest relevant skills and agents as you type — no trigger character needed.
+
+Suggestions appear as chips below the editor after a short pause. Each chip shows the skill or agent name and a brief reason. Click the `×` to dismiss a chip for the current session.
+
+### Setup
+
+Add your Anthropic API key to Draftflow settings:
+
+```json
+{
+  "anthropic": {
+    "apiKey": "sk-ant-..."
+  },
+  "suggestions": {
+    "confidenceThreshold": 0.6,
+    "maxSuggestions": 3
+  }
+}
+```
+
+- If `anthropic.apiKey` is absent, suggestions are silently disabled — no API calls are made.
+- Suggestions use `claude-haiku-4-5-20251001` (fast and inexpensive).
+- Results are cached per prompt within a session to avoid redundant calls.
 
 ## Skill autocomplete
 
