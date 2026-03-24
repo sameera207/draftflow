@@ -302,6 +302,19 @@
   }
 
   /* INSTALL */
+  .install-note {
+    margin-top: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .install-note code {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    background: rgba(255,255,255,0.07);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
   .install-section {
     padding: 5rem 0;
     border-top: 1px solid var(--border);
@@ -538,6 +551,7 @@
         <div><span class="t-prompt">$ </span><span class="t-cmd">open Draftflow → Settings → <span class="t-dim">Install /df command</span></span></div>
       </div>
     </div>
+    <p class="install-note"><strong>First launch:</strong> macOS may block the app. Go to System Settings → Privacy &amp; Security → click "Open Anyway", or run <code>xattr -cr /Applications/Draftflow.app</code> in terminal.</p>
   </div>
 </section>
 
