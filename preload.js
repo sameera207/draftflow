@@ -28,8 +28,10 @@ contextBridge.exposeInMainWorld('api', {
   saveScratchAs: (args)  => ipcRenderer.invoke('save-scratch-as', args),
 
   onMenuAction:   (cb) => ipcRenderer.on('menu-action', (_e, action) => cb(action)),
-  onBridgeOpen:   (cb) => ipcRenderer.on('bridge-open', (_e, filePath) => cb(filePath)),
-  sendBack:       (content) => ipcRenderer.invoke('send-back', content),
+  onBridgeOpen:          (cb) => ipcRenderer.on('bridge-open', (_e, filePath, mode) => cb(filePath, mode)),
+  sendBack:              (content) => ipcRenderer.invoke('send-back', content),
+  readContextFile:       (filePath) => ipcRenderer.invoke('read-context-file', filePath),
+  bridgeSendToTerminal:  (content) => ipcRenderer.invoke('bridge-send-to-terminal', content),
   installDfCommand:   () => ipcRenderer.invoke('install-df-command'),
   dfCommandInstalled: () => ipcRenderer.invoke('df-command-installed'),
   suggestSkills:    (data)      => ipcRenderer.invoke('suggest-skills', data),

@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard } = require('electron')
+const { exec } = require('child_process')
 const path = require('path')
 const fs   = require('fs')
 const os   = require('os')
@@ -28,11 +29,11 @@ app.setAsDefaultProtocolClient('draftflow')
 
 app.on('open-url', (event, url) => {
   event.preventDefault()
-  const filePath = parseBridgeUrl(url)
-  if (!filePath) return
+  const result = parseBridgeUrl(url)
+  if (!result) return
   if (mainWindow) {
     mainWindow.focus()
-    mainWindow.webContents.send('bridge-open', filePath)
+    mainWindow.webContents.send('bridge-open', result.filePath, result.mode)
   } else {
     pendingBridgeUrl = url
   }
@@ -122,7 +123,8 @@ function parseBridgeUrl (url) {
     if (u.protocol !== 'draftflow:') return null
     const file = u.searchParams.get('file')
     if (!file) return null
-    return expandPath(file)
+    const mode = u.searchParams.get('mode') || null
+    return { filePath: expandPath(file), mode }
   } catch (_) { return null }
 }
 
@@ -207,9 +209,9 @@ function createWindow () {
 
   mainWindow.webContents.on('did-finish-load', () => {
     if (pendingBridgeUrl) {
-      const filePath = parseBridgeUrl(pendingBridgeUrl)
+      const result = parseBridgeUrl(pendingBridgeUrl)
       pendingBridgeUrl = null
-      if (filePath) mainWindow.webContents.send('bridge-open', filePath)
+      if (result) mainWindow.webContents.send('bridge-open', result.filePath, result.mode)
     }
   })
 
@@ -381,6 +383,53 @@ ipcMain.handle('send-back', async (_e, content) => {
   } catch (err) {
     return { ok: false, error: err.message }
   }
+})
+
+ipcMain.handle('read-context-file', async (_e, filePath) => {
+  try { return fs.readFileSync(filePath, 'utf8') } catch (_) { return '' }
+})
+
+ipcMain.handle('bridge-send-to-terminal', async (_e, content) => {
+  const bridgeDir    = path.join(os.homedir(), '.claude', 'editor-bridge')
+  const responsePath = path.join(bridgeDir, 'response.md')
+  try {
+    fs.mkdirSync(bridgeDir, { recursive: true })
+    fs.writeFileSync(responsePath, content, 'utf8')
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+
+  if (process.platform !== 'darwin') {
+    clipboard.writeText(content)
+    return { ok: true, method: 'clipboard', path: responsePath }
+  }
+
+  const script = `
+    tell application "System Events"
+      set frontApp to name of first application process whose frontmost is true
+    end tell
+    if frontApp is "Terminal" then
+      tell application "Terminal" to activate
+      return "terminal"
+    else if frontApp is "iTerm2" or frontApp is "iTerm" then
+      tell application "iTerm" to activate
+      return "iterm"
+    else
+      return "none"
+    end if
+  `
+
+  return new Promise((resolve) => {
+    exec(`osascript -e '${script.replace(/'/g, "'\\''")}'`, (err, stdout) => {
+      const result = (stdout || '').trim()
+      if (err || result === 'none') {
+        clipboard.writeText(content)
+        resolve({ ok: true, method: 'clipboard', path: responsePath })
+      } else {
+        resolve({ ok: true, method: result, path: responsePath })
+      }
+    })
+  })
 })
 
 ipcMain.handle('install-df-command', async () => {

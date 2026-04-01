@@ -27,6 +27,11 @@
   --accent-bg: rgba(200,169,109,0.07);
   --agent-bg:  rgba(127,191,168,0.07);
   --red:       #d4736a;
+  --bridge-amber:     #d4a54a;
+  --bridge-amber-dim: #b8923e;
+  --bridge-bg:        rgba(212,165,74,0.05);
+  --bridge-bg2:       rgba(212,165,74,0.08);
+  --bridge-border:    rgba(212,165,74,0.15);
   --mono: 'JetBrains Mono', monospace;
   --serif: 'Lora', Georgia, serif;
 }
@@ -47,6 +52,11 @@ html.light {
   --accent-bg: rgba(154,112,48,0.1);
   --agent-bg:  rgba(38,122,104,0.1);
   --red:       #b04030;
+  --bridge-amber:     #b07a20;
+  --bridge-amber-dim: #9a6a18;
+  --bridge-bg:        rgba(176,122,32,0.06);
+  --bridge-bg2:       rgba(176,122,32,0.10);
+  --bridge-border:    rgba(176,122,32,0.18);
 }
 
 html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 18px; }
@@ -486,6 +496,123 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .mermaid-diagram svg { max-width: 100%; height: auto; }
 .mermaid-error { color: var(--text-faint); font-family: var(--mono); font-size: 12px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; margin: 1em 0; }
 
+/* ── BRIDGE SESSION ── */
+.bridge-badge {
+  display: none; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--bridge-amber); letter-spacing: .06em;
+  position: absolute; left: 50%; transform: translateX(-50%);
+  pointer-events: none; white-space: nowrap;
+}
+.bridge-badge .pulse-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--bridge-amber);
+  animation: bridge-pulse 2s ease-in-out infinite;
+}
+@keyframes bridge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+body.bridge-session .titlebar { background: var(--bridge-bg); }
+body.bridge-session .bridge-badge { display: flex; }
+body.bridge-session .titlebar-center { display: none; }
+body.bridge-session .mode-toggle { opacity: 0.3; pointer-events: none; }
+
+/* Context pane */
+.context-pane {
+  flex: 1; overflow-y: auto;
+  border-left: 1px solid var(--bridge-border);
+  background: var(--bridge-bg);
+  display: none; flex-direction: column;
+}
+body.bridge-session .context-pane.visible { display: flex; }
+body.bridge-session .preview-pane { display: none !important; }
+
+.context-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--bridge-border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  background: var(--bridge-bg2);
+  font-size: 12px; color: var(--bridge-amber-dim); letter-spacing: .04em;
+}
+.context-header-label { flex: 1; }
+.context-toggle-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--bridge-amber-dim); font-family: var(--mono);
+  font-size: 12px; padding: 2px 6px; border-radius: 3px;
+  transition: color .15s;
+}
+.context-toggle-btn:hover { color: var(--bridge-amber); }
+.context-body {
+  flex: 1; overflow-y: auto; padding: 20px 28px 40px;
+}
+.context-body::-webkit-scrollbar { width: 3px; }
+.context-body::-webkit-scrollbar-thumb { background: var(--border2); }
+.context-body h1,.context-body h2,.context-body h3,.context-body h4 {
+  font-family: var(--serif); font-weight: 400; color: var(--text); margin: 1.6em 0 .5em; line-height: 1.3;
+}
+.context-body h1 { font-size: 26px; }
+.context-body h2 { font-size: 20px; }
+.context-body h3 { font-size: 16px; color: var(--text-dim); }
+.context-body h4 { font-size: 14px; color: var(--text-dim); }
+.context-body p  { color: var(--text-dim); line-height: 1.8; margin-bottom: .9em; font-size: 14px; font-family: var(--serif); }
+.context-body code { font-family: var(--mono); font-size: 12px; background: var(--surface2); color: var(--accent); padding: 1px 6px; border-radius: 3px; }
+.context-body pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin: 1em 0; overflow-x: auto; }
+.context-body pre code { background: none; padding: 0; color: var(--text); font-size: 13px; }
+.context-body ul,.context-body ol { color: var(--text-dim); padding-left: 1.4em; margin-bottom: .9em; font-family: var(--serif); font-size: 14px; line-height: 1.8; }
+.context-body li { margin-bottom: .2em; }
+.context-body blockquote { border-left: 2px solid var(--bridge-amber); margin: 1em 0; padding: 4px 16px; color: var(--text-dim); font-style: italic; font-family: var(--serif); }
+.context-body strong { color: var(--text); font-weight: 500; }
+.context-body a { color: var(--bridge-amber); text-decoration: none; }
+.context-body table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 13px; font-family: var(--mono); }
+.context-body th,.context-body td { padding: 6px 12px; border: 1px solid var(--border2); text-align: left; }
+.context-body th { background: var(--surface2); color: var(--text); }
+.context-body td { color: var(--text-dim); }
+
+/* Context rail (collapsed) */
+.context-rail {
+  width: 24px; flex-shrink: 0;
+  background: var(--bridge-bg2);
+  border-left: 1px solid var(--bridge-border);
+  display: none; align-items: center; justify-content: flex-start;
+  cursor: pointer; padding-top: 12px;
+  writing-mode: vertical-rl;
+  font-size: 11px; color: var(--bridge-amber-dim); letter-spacing: .06em;
+  transition: background .15s; gap: 8px;
+}
+.context-rail:hover { background: var(--bridge-bg); }
+body.bridge-session .context-rail.visible { display: flex; }
+
+/* Bridge status bar elements */
+.bridge-exit-btn {
+  font-size: 12px; color: var(--text-faint); cursor: pointer;
+  background: none; border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: 3px;
+  font-family: var(--mono); letter-spacing: .04em;
+  display: none; transition: color .15s, border-color .15s;
+}
+.bridge-exit-btn:hover { color: var(--text-dim); border-color: var(--border2); }
+body.bridge-session .bridge-exit-btn { display: inline-flex; }
+
+.bridge-send-btn {
+  position: absolute; right: 14px;
+  top: 50%; transform: translateY(-50%);
+  background: var(--bridge-amber); color: var(--bg);
+  border: none; cursor: pointer;
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  letter-spacing: .04em; padding: 4px 12px;
+  border-radius: 4px; display: none; align-items: center; gap: 6px;
+  transition: opacity .15s;
+  box-shadow: 0 2px 12px rgba(212,165,74,.25);
+}
+.bridge-send-btn:hover { opacity: .85; }
+body.bridge-session .bridge-send-btn { display: flex; }
+body.bridge-session .sendback-btn { display: none !important; }
+body.bridge-session .claude-btn { display: none !important; }
+body.bridge-session #btn-scratch { opacity: 0.3; pointer-events: none; }
+body.bridge-session .scratchpad-pane { width: 0 !important; border-left-width: 0 !important; }
+
+.bridge-status-preview, .bridge-status-scratch { display: none; }
+.bridge-status-scratch { text-decoration: line-through; color: var(--text-faint); }
+body.bridge-session .bridge-status-preview { display: flex; }
+body.bridge-session .bridge-status-scratch { display: flex; }
+
 /* ── STATUSBAR ── */
 .statusbar {
   height: 26px; background: var(--surface);
@@ -773,6 +900,10 @@ html.light .token-danger { color: #b04030 !important; }
     <span class="titlebar-fname" id="tb-name">untitled</span>
     <span class="titlebar-dot"   id="tb-dot">●</span>
   </div>
+  <div class="bridge-badge" id="bridge-badge">
+    <span class="pulse-dot"></span>
+    <span>bridge session</span>
+  </div>
 
   <div class="titlebar-actions">
     <button class="tb-btn" id="btn-files" title="Toggle file panel">
@@ -896,6 +1027,19 @@ html.light .token-danger { color: #b04030 !important; }
       <!-- PREVIEW -->
       <div class="preview-pane" id="preview-pane"></div>
 
+      <!-- CONTEXT PANE (bridge session) -->
+      <div class="context-pane" id="context-pane">
+        <div class="context-header">
+          <span class="context-header-label">claude &middot; last response</span>
+          <button class="context-toggle-btn" id="context-collapse-btn" title="Collapse (&#x2318;&#x21E7;K)">&lsaquo; &#x2318;&#x21E7;K</button>
+        </div>
+        <div class="context-body" id="context-body"></div>
+      </div>
+      <div class="context-rail" id="context-rail" title="Expand context &#x2318;&#x21E7;K">
+        <span>&rsaquo;</span>
+        <span>claude &middot; last response</span>
+      </div>
+
       <!-- SCRATCHPAD -->
       <div class="scratchpad-pane" id="scratchpad-pane">
         <div class="scratch-header">
@@ -919,6 +1063,10 @@ html.light .token-danger { color: #b04030 !important; }
       <span class="status-item" id="token-count" style="display:none">~0 tokens</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
+      <span class="status-item bridge-status-preview">preview off</span>
+      <span class="status-item bridge-status-scratch">scratch</span>
+      <button class="bridge-exit-btn" id="btn-bridge-exit">exit</button>
+      <button class="bridge-send-btn" id="btn-bridge-send">Send to Claude &#x21B5;</button>
       <button class="sendback-btn" id="btn-sendback" style="display:none">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7H2M6 3L2 7l4 4"/></svg>
         send back
@@ -1065,6 +1213,9 @@ let pendingSettings = null   // settings being edited in modal
 let panelOpen       = true
 let currentMode     = 'edit'
 let toastTimer      = null
+let bridgeSession       = false
+let bridgeContextPath   = null
+let contextPaneExpanded = true
 
 // ─────────────────────────────────────────────
 // Skill Suggestion Service
@@ -1193,8 +1344,19 @@ document.addEventListener('keydown', e => {
   if (mod && e.key === 's') { e.preventDefault(); e.shiftKey ? handleSaveAs() : handleSave() }
   if (mod && e.key === 'o') { e.preventDefault(); handleOpen() }
   if (mod && e.key === 'n') { e.preventDefault(); handleNew() }
-  if (mod && e.key === 'k') { e.preventDefault(); toggleScratch() }
+  if (mod && e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault()
+    if (bridgeSession) toggleContextPane()
+    return
+  }
+  if (mod && e.key === 'k') { e.preventDefault(); if (!bridgeSession) toggleScratch() }
   if (mod && e.key === 'p') { e.preventDefault(); openPalette() }
+  if (e.key === 'Escape' && bridgeSession && !editorEl.value.trim() && !popupVisible && !paletteOpen) {
+    e.preventDefault(); exitBridgeSession()
+  }
+  if (mod && e.key === 'Enter' && bridgeSession) {
+    e.preventDefault(); document.getElementById('btn-bridge-send').click()
+  }
 })
 
 // ─────────────────────────────────────────────
@@ -1263,10 +1425,14 @@ async function init () {
     await openFilePath(settings.lastOpenFile)
   }
 
-  window.api.onBridgeOpen(async (filePath) => {
-    await openFilePath(filePath)
-    document.getElementById('btn-sendback').style.display = 'flex'
-    showToast('Opened from Claude · edit and send back', 'skill')
+  window.api.onBridgeOpen(async (filePath, mode) => {
+    if (mode === 'bridge') {
+      await enterBridgeSession(filePath)
+    } else {
+      await openFilePath(filePath)
+      document.getElementById('btn-sendback').style.display = 'flex'
+      showToast('Opened from Claude · edit and send back', 'skill')
+    }
   })
 }
 
@@ -1660,6 +1826,7 @@ editorEl.addEventListener('blur', () => {
 // ─────────────────────────────────────────────
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (bridgeSession) return
     currentMode = btn.dataset.mode
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b === btn))
     const preview = document.getElementById('preview-pane')
@@ -2324,6 +2491,111 @@ document.getElementById('btn-sendback').addEventListener('click', async () => {
   } catch (err) {
     showToast('Send back failed: ' + err.message, 'error')
   }
+})
+
+// ─────────────────────────────────────────────
+// Bridge session
+// ─────────────────────────────────────────────
+async function enterBridgeSession (contextFilePath) {
+  bridgeSession = true
+  bridgeContextPath = contextFilePath
+  document.body.classList.add('bridge-session')
+
+  if (scratchOpen) closeScratch()
+
+  // Hide preview, show context pane expanded
+  document.getElementById('preview-pane').classList.remove('visible')
+  contextPaneExpanded = true
+  showContextPane()
+
+  // Load and render context
+  const contextContent = await window.api.readContextFile(contextFilePath)
+  renderContextContent(contextContent)
+
+  // Prepare editor for drafting
+  editorEl.value = ''
+  editorEl.placeholder = 'draft your response to Claude...'
+  currentFilePath = null
+  setDirty(false)
+  updateEditorPath()
+
+  // Force edit mode
+  currentMode = 'edit'
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === 'edit'))
+  editorEl.style.display = ''
+
+  showToast('Bridge session started \u00b7 draft and send', 'skill')
+  editorEl.focus()
+}
+
+function exitBridgeSession () {
+  bridgeSession = false
+  bridgeContextPath = null
+  document.body.classList.remove('bridge-session')
+
+  document.getElementById('context-pane').classList.remove('visible')
+  document.getElementById('context-rail').classList.remove('visible')
+
+  editorEl.placeholder = 'start writing\u2026  ( type # for skills, @ for agents )'
+  showToast('Bridge session ended', 'skill')
+}
+
+function renderContextContent (markdown) {
+  const body = document.getElementById('context-body')
+  if (typeof marked !== 'undefined') {
+    body.innerHTML = marked.parse(markdown || '')
+  } else {
+    body.textContent = markdown || ''
+  }
+}
+
+function showContextPane () {
+  document.getElementById('context-pane').classList.add('visible')
+  document.getElementById('context-rail').classList.remove('visible')
+}
+
+function hideContextPane () {
+  document.getElementById('context-pane').classList.remove('visible')
+  document.getElementById('context-rail').classList.add('visible')
+}
+
+function toggleContextPane () {
+  if (!bridgeSession) return
+  if (contextPaneExpanded) {
+    contextPaneExpanded = false
+    hideContextPane()
+  } else {
+    contextPaneExpanded = true
+    showContextPane()
+  }
+}
+
+document.getElementById('context-collapse-btn').addEventListener('click', toggleContextPane)
+document.getElementById('context-rail').addEventListener('click', () => {
+  contextPaneExpanded = true
+  showContextPane()
+})
+
+document.getElementById('btn-bridge-send').addEventListener('click', async () => {
+  const text = editorEl.value
+  if (!text.trim()) { showToast('Nothing to send', 'error'); return }
+  try {
+    const result = await window.api.bridgeSendToTerminal(text)
+    if (!result.ok) throw new Error(result.error)
+    if (result.method === 'clipboard') {
+      showToast('Copied to clipboard \u00b7 paste into Claude Code', 'skill')
+    } else {
+      showToast('Sent to Claude \u00b7 switching to terminal', 'skill')
+    }
+    exitBridgeSession()
+  } catch (err) {
+    showToast('Send failed: ' + err.message, 'error')
+  }
+})
+
+document.getElementById('btn-bridge-exit').addEventListener('click', () => {
+  exitBridgeSession()
 })
 
 // ─────────────────────────────────────────────
