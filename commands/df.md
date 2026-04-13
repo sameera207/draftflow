@@ -15,7 +15,7 @@ Open the current selection or a new draft in Draftflow, wait for the user to edi
 
 4. Open Draftflow via the bridge URL:
    ```bash
-   open "draftflow://?file=$HOME/.claude/editor-bridge/request.md"
+   open "draftflow://?file=$HOME/.claude/editor-bridge/request.md&cwd=$(pwd)"
    ```
 
 5. Tell the user:

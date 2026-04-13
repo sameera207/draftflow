@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   saveScratchAs: (args)  => ipcRenderer.invoke('save-scratch-as', args),
 
   onMenuAction:   (cb) => ipcRenderer.on('menu-action', (_e, action) => cb(action)),
-  onBridgeOpen:   (cb) => ipcRenderer.on('bridge-open', (_e, filePath) => cb(filePath)),
+  onBridgeOpen:   (cb) => ipcRenderer.on('bridge-open', (_e, data) => cb(data)),
   sendBack:       (content) => ipcRenderer.invoke('send-back', content),
   installDfCommand:   () => ipcRenderer.invoke('install-df-command'),
   dfCommandInstalled: () => ipcRenderer.invoke('df-command-installed'),

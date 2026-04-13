@@ -957,7 +957,7 @@ html.light .token-danger { color: #b04030 !important; }
         <div class="settings-section-title">Claude Code bridge</div>
         <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
           <div style="flex:1;font-size:13px;color:var(--text-dim);line-height:1.4;">
-            Install the <code style="font-family:var(--mono);color:var(--accent);background:rgba(200,169,109,.1);padding:1px 5px;border-radius:3px;">/df</code> command so Claude Code can open files in Draftflow.
+            Install the <code style="font-family:var(--mono);color:var(--accent);background:rgba(200,169,109,.1);padding:1px 5px;border-radius:3px;">/df</code> command and hook so Claude Code can open files in Draftflow.
           </div>
           <button class="btn primary" id="btn-install-df" style="flex-shrink:0;">Install /df command</button>
         </div>
@@ -1263,8 +1263,10 @@ async function init () {
     await openFilePath(settings.lastOpenFile)
   }
 
-  window.api.onBridgeOpen(async (filePath) => {
-    await openFilePath(filePath)
+  window.api.onBridgeOpen(async (data) => {
+    const filePath = typeof data === 'string' ? data : data.file
+    const cwd      = typeof data === 'string' ? null  : data.cwd
+    await openFilePath(filePath, cwd)
     document.getElementById('btn-sendback').style.display = 'flex'
     showToast('Opened from Claude · edit and send back', 'skill')
   })
@@ -1343,7 +1345,7 @@ async function handleSaveAs () {
   showToast('Saved', 'skill')
 }
 
-async function openFilePath (filePath) {
+async function openFilePath (filePath, cwdOverride = null) {
   if (!window.api) return
   const result = await window.api.readFile(filePath)
   if (!result) { showToast('Could not open file', 'error'); return }
@@ -1357,7 +1359,7 @@ async function openFilePath (filePath) {
   updateTokenCount()
   settings = await window.api.loadSettings()
   renderFilePanel()
-  await updateProjectTree(filePath)
+  await updateProjectTree(filePath, cwdOverride)
 }
 
 // ─────────────────────────────────────────────
@@ -1474,9 +1476,15 @@ let projectTreeData  = null
 let currentProjectRoot = null
 let folderExpanded   = {}
 
-async function updateProjectTree (filePath) {
+async function updateProjectTree (filePath, cwdOverride = null) {
   if (!window.api || !window.api.findProjectRoot) return
-  const { root, found } = await window.api.findProjectRoot(filePath)
+  let root, found
+  if (cwdOverride) {
+    root  = cwdOverride
+    found = true
+  } else {
+    ;({ root, found } = await window.api.findProjectRoot(filePath))
+  }
   if (root !== currentProjectRoot) {
     currentProjectRoot = root
     folderExpanded = {}

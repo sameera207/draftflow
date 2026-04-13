@@ -24,15 +24,19 @@ let mainWindow
 let settings = {}
 let pendingBridgeUrl = null
 
-app.setAsDefaultProtocolClient('draftflow')
+if (app.isPackaged) {
+  app.setAsDefaultProtocolClient('draftflow')
+} else {
+  app.setAsDefaultProtocolClient('draftflow', process.execPath, [path.resolve(process.argv[1])])
+}
 
 app.on('open-url', (event, url) => {
   event.preventDefault()
-  const filePath = parseBridgeUrl(url)
-  if (!filePath) return
+  const bridgeData = parseBridgeUrl(url)
+  if (!bridgeData) return
   if (mainWindow) {
     mainWindow.focus()
-    mainWindow.webContents.send('bridge-open', filePath)
+    mainWindow.webContents.send('bridge-open', bridgeData)
   } else {
     pendingBridgeUrl = url
   }
@@ -122,7 +126,8 @@ function parseBridgeUrl (url) {
     if (u.protocol !== 'draftflow:') return null
     const file = u.searchParams.get('file')
     if (!file) return null
-    return expandPath(file)
+    const cwd = u.searchParams.get('cwd') || null
+    return { file: expandPath(file), cwd: cwd ? expandPath(cwd) : null }
   } catch (_) { return null }
 }
 
@@ -207,9 +212,9 @@ function createWindow () {
 
   mainWindow.webContents.on('did-finish-load', () => {
     if (pendingBridgeUrl) {
-      const filePath = parseBridgeUrl(pendingBridgeUrl)
+      const bridgeData = parseBridgeUrl(pendingBridgeUrl)
       pendingBridgeUrl = null
-      if (filePath) mainWindow.webContents.send('bridge-open', filePath)
+      if (bridgeData) mainWindow.webContents.send('bridge-open', bridgeData)
     }
   })
 
@@ -384,20 +389,53 @@ ipcMain.handle('send-back', async (_e, content) => {
 })
 
 ipcMain.handle('install-df-command', async () => {
-  const src  = path.join(__dirname, 'commands', 'df.md')
-  const dest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
   try {
-    fs.mkdirSync(path.dirname(dest), { recursive: true })
-    fs.copyFileSync(src, dest)
-    return { ok: true, path: dest }
+    // 1. Install /df command
+    const cmdSrc  = path.join(__dirname, 'commands', 'df.md')
+    const cmdDest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
+    fs.mkdirSync(path.dirname(cmdDest), { recursive: true })
+    fs.copyFileSync(cmdSrc, cmdDest)
+
+    // 2. Install df_bridge hook script
+    const hookSrc  = path.join(__dirname, 'hooks', 'df_bridge.py')
+    const hookDest = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
+    fs.mkdirSync(path.dirname(hookDest), { recursive: true })
+    fs.copyFileSync(hookSrc, hookDest)
+    fs.chmodSync(hookDest, 0o755)
+
+    // 3. Register hook in ~/.claude/settings.json
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json')
+    let claudeSettings = {}
+    try { claudeSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) } catch (_) {}
+
+    const hookEntry = { type: 'command', command: `python3 ${hookDest}` }
+    if (!claudeSettings.hooks) claudeSettings.hooks = {}
+    if (!claudeSettings.hooks.UserPromptSubmit) claudeSettings.hooks.UserPromptSubmit = []
+
+    const already = claudeSettings.hooks.UserPromptSubmit.some(h =>
+      Array.isArray(h.hooks) && h.hooks.some(e => e.command && e.command.includes('df_bridge.py'))
+    )
+    if (!already) {
+      claudeSettings.hooks.UserPromptSubmit.push({ hooks: [hookEntry] })
+    } else {
+      // Update existing entry in case path changed
+      claudeSettings.hooks.UserPromptSubmit = claudeSettings.hooks.UserPromptSubmit.map(h => {
+        if (!Array.isArray(h.hooks)) return h
+        return { ...h, hooks: h.hooks.map(e => e.command && e.command.includes('df_bridge.py') ? hookEntry : e) }
+      })
+    }
+
+    fs.writeFileSync(settingsPath, JSON.stringify(claudeSettings, null, 2))
+    return { ok: true }
   } catch (err) {
     return { ok: false, error: err.message }
   }
 })
 
 ipcMain.handle('df-command-installed', async () => {
-  const dest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
-  return fs.existsSync(dest)
+  const cmdDest  = path.join(os.homedir(), '.claude', 'commands', 'df.md')
+  const hookDest = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
+  return fs.existsSync(cmdDest) && fs.existsSync(hookDest)
 })
 ipcMain.handle('count-tokens', async (_e, text) => {
   const t = getTokenizer()
