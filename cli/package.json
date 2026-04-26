@@ -1,0 +1,21 @@
+{
+  "name": "draftflow",
+  "version": "0.1.0",
+  "description": "Markdown editor for Claude Code workflows — install and manage Draftflow from the command line",
+  "keywords": ["claude", "claude-code", "markdown", "editor", "ai"],
+  "homepage": "https://github.com/sameera207/draftflow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sameera207/draftflow.git"
+  },
+  "license": "MIT",
+  "bin": {
+    "draftflow": "./bin/draftflow.js"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
