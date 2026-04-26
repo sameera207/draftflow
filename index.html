@@ -526,6 +526,16 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .sendback-btn:hover { background: rgba(127,191,168,.15); }
 .sendback-btn svg { width: 11px; height: 11px; }
 
+.review-badge {
+  display: none; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+  color: var(--accent2); background: var(--agent-bg);
+  border: 1px solid rgba(127,191,168,.2); border-radius: 4px;
+  padding: 2px 8px; margin-right: 6px;
+}
+.review-badge.visible { display: flex; }
+.review-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); }
+
 /* ── SETTINGS MODAL ── */
 .overlay {
   position: fixed; inset: 0; z-index: 200;
@@ -921,6 +931,9 @@ html.light .token-danger { color: #b04030 !important; }
       <span class="status-item" id="token-count" style="display:none">~0 tokens</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
+      <div class="review-badge" id="review-badge">
+        <span class="review-badge-dot"></span>reviewing plan
+      </div>
       <button class="sendback-btn" id="btn-sendback" style="display:none">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7H2M6 3L2 7l4 4"/></svg>
         send back
@@ -1067,6 +1080,8 @@ let pendingSettings = null   // settings being edited in modal
 let panelOpen       = true
 let currentMode     = 'edit'
 let toastTimer      = null
+let reviewMode      = false   // true when opened via /df p
+let reviewContent   = ''      // plan shown in preview pane during review
 
 // ─────────────────────────────────────────────
 // Skill Suggestion Service
@@ -1258,11 +1273,33 @@ async function init () {
     bridgeOpened = true
     const filePath = typeof data === 'string' ? data : data.file
     const cwd      = typeof data === 'string' ? null  : data.cwd
-    console.log('[bridge] onBridgeOpen fired', { filePath, cwd })
-    await openFilePath(filePath, cwd)
-    console.log('[bridge] openFilePath done, currentProjectRoot=', currentProjectRoot)
-    document.getElementById('btn-sendback').style.display = 'flex'
-    showToast('Opened from Claude · edit and send back', 'skill')
+    const mode     = typeof data === 'string' ? null  : data.mode
+    console.log('[bridge] onBridgeOpen fired', { filePath, cwd, mode })
+
+    if (mode === 'review') {
+      // Review mode: show plan in preview, keep editor empty for notes
+      const result = await window.api.readFile(filePath)
+      reviewContent = result ? result.content : ''
+      reviewMode    = true
+      editorEl.value = ''
+      setDirty(false)
+      updateWordCount()
+      updateTokenCount()
+      // Force split so the plan is visible in preview
+      currentMode = 'split'
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'split'))
+      document.getElementById('preview-pane').classList.add('visible')
+      editorEl.style.display = ''
+      updatePreview()
+      document.getElementById('review-badge').classList.add('visible')
+      document.getElementById('btn-sendback').style.display = 'flex'
+      showToast('Plan loaded in preview · type your notes in the editor', 'skill')
+    } else {
+      await openFilePath(filePath, cwd)
+      console.log('[bridge] openFilePath done, currentProjectRoot=', currentProjectRoot)
+      document.getElementById('btn-sendback').style.display = 'flex'
+      showToast('Opened from Claude · edit and send back', 'skill')
+    }
   })
 
   settings = await window.api.loadSettings()
@@ -1361,6 +1398,9 @@ async function openFilePath (filePath, cwdOverride = null) {
   if (!result) { showToast('Could not open file', 'error'); return }
   editorEl.value = result.content
   currentFilePath = filePath
+  reviewMode = false
+  reviewContent = ''
+  document.getElementById('review-badge').classList.remove('visible')
   setDirty(false)
   updateTitlebar()
   updateEditorPath()
@@ -1368,8 +1408,8 @@ async function openFilePath (filePath, cwdOverride = null) {
   updateWordCount()
   updateTokenCount()
   settings = await window.api.loadSettings()
-  renderFilePanel()
   await updateProjectTree(filePath, cwdOverride)
+  renderFilePanel()
 }
 
 // ─────────────────────────────────────────────
@@ -1418,7 +1458,10 @@ function renderFilePanel () {
 
 function renderRecent () {
   const el = document.getElementById('recent-list')
-  const files = settings.recentFiles || []
+  const all = settings.recentFiles || []
+  const files = currentProjectRoot
+    ? all.filter(f => (typeof f === 'string' ? f : f.path).startsWith(currentProjectRoot + '/'))
+    : all
   if (!files.length) {
     el.innerHTML = '<div class="tree-empty">no recent files</div>'
     return
@@ -1780,11 +1823,13 @@ function updatePreview () {
   const pane = document.getElementById('preview-pane')
   if (!pane.classList.contains('visible')) return
 
+  // In review mode the preview always shows the plan, not the editor content
+  const source = reviewMode ? reviewContent : editorEl.value
   let html
   if (typeof marked !== 'undefined') {
-    html = marked.parse(editorEl.value || '')
+    html = marked.parse(source || '')
   } else {
-    html = `<pre>${escHtml(editorEl.value)}</pre>`
+    html = `<pre>${escHtml(source)}</pre>`
   }
 
   // Annotate #skill and @agent mentions (not inside code blocks)
@@ -2337,10 +2382,13 @@ document.getElementById('btn-save').addEventListener('click', handleSave)
 // ─────────────────────────────────────────────
 document.getElementById('btn-sendback').addEventListener('click', async () => {
   const text = editorEl.value
-  if (!text.trim()) { showToast('Nothing to send back', 'error'); return }
+  if (!text.trim() && !reviewMode) { showToast('Nothing to send back', 'error'); return }
   try {
     const result = await window.api.sendBack(text)
     if (!result.ok) throw new Error(result.error)
+    reviewMode    = false
+    reviewContent = ''
+    document.getElementById('review-badge').classList.remove('visible')
     showToast('Sent back to Claude — say "done" in Claude Code', 'skill')
   } catch (err) {
     showToast('Send back failed: ' + err.message, 'error')

@@ -141,8 +141,9 @@ function parseBridgeUrl (url) {
     if (u.protocol !== 'draftflow:') return null
     const file = u.searchParams.get('file')
     if (!file) return null
-    const cwd = u.searchParams.get('cwd') || null
-    return { file: expandPath(file), cwd: cwd ? expandPath(cwd) : null }
+    const cwd  = u.searchParams.get('cwd')  || null
+    const mode = u.searchParams.get('mode') || null
+    return { file: expandPath(file), cwd: cwd ? expandPath(cwd) : null, mode }
   } catch (_) { return null }
 }
 

@@ -11,7 +11,7 @@ prompt = data.get("prompt", "").strip()
 cwd = data.get("cwd") or os.getcwd()
 
 # Only act on /df commands
-if not (prompt == "/df" or prompt.lower().startswith("/df ") or prompt.lower().startswith("/df\n")):
+if not (prompt == "/df" or prompt.lower().startswith("/df ")):
     sys.exit(0)
 
 bridge = pathlib.Path.home() / ".claude" / "editor-bridge"
@@ -21,8 +21,14 @@ resp = bridge / "response.md"
 if resp.exists():
     resp.unlink()
 
-# Extract any content passed after /df
-content = prompt[3:].strip() if len(prompt) > 3 else ""
+# /df p — review previous: let Claude extract and write the previous response,
+# then open Draftflow in review mode. Just clean up and exit without blocking.
+after = prompt[3:].strip()
+if after.lower() == "p":
+    sys.exit(0)
+
+# Plain /df [content]: write content to request.md and open Draftflow.
+content = after
 req = bridge / "request.md"
 req.write_text(content)
 
