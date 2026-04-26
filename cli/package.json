@@ -1,5 +1,5 @@
 {
-  "name": "draftflow",
+  "name": "@draftflow/cli",
   "version": "0.1.0",
   "description": "Markdown editor for Claude Code workflows — install and manage Draftflow from the command line",
   "keywords": ["claude", "claude-code", "markdown", "editor", "ai"],
