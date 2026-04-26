@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-UserPromptSubmit hook: intercepts /df, opens Draftflow, and blocks the LLM call.
-No output is printed to the terminal.
+UserPromptSubmit hook: intercepts /df, does setup, then lets Claude run the poller.
 """
 import sys, json, pathlib, subprocess, os
 from urllib.parse import quote
@@ -21,16 +20,14 @@ resp = bridge / "response.md"
 if resp.exists():
     resp.unlink()
 
-# /df p — review previous: let Claude extract and write the previous response,
-# then open Draftflow in review mode. Just clean up and exit without blocking.
+# /df p — review previous: let Claude write the previous response and open Draftflow.
 after = prompt[3:].strip()
 if after.lower() == "p":
     sys.exit(0)
 
 # Plain /df [content]: write content to request.md and open Draftflow.
-content = after
 req = bridge / "request.md"
-req.write_text(content)
+req.write_text(after)
 
 result = subprocess.run(
     ["open", "-a", "Draftflow", f"draftflow://?file={quote(str(req))}&cwd={quote(str(cwd))}"],
@@ -49,4 +46,13 @@ if result.returncode != 0:
     }))
     sys.exit(0)
 
-print(json.dumps({"decision": "block", "reason": ""}))
+# Setup done — let Claude through to run the response poller.
+print(json.dumps({
+    "hookSpecificOutput": {
+        "hookEventName": "UserPromptSubmit",
+        "additionalContext": (
+            "SYSTEM (df hook): request.md is written and Draftflow is open. "
+            "Do not print anything. Run the response poller immediately."
+        )
+    }
+}))
