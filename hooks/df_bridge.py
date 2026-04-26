@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-UserPromptSubmit hook: intercepts /df and runs the Draftflow bridge directly.
-Outputs additionalContext so Claude knows Draftflow is already open.
+UserPromptSubmit hook: intercepts /df, opens Draftflow, and blocks the LLM call.
+No output is printed to the terminal.
 """
-import sys, json, pathlib, subprocess
+import sys, json, pathlib, subprocess, os
+from urllib.parse import quote
 
 data = json.load(sys.stdin)
 prompt = data.get("prompt", "").strip()
+cwd = data.get("cwd") or os.getcwd()
 
 # Only act on /df commands
 if not (prompt == "/df" or prompt.lower().startswith("/df ") or prompt.lower().startswith("/df\n")):
@@ -25,7 +27,7 @@ req = bridge / "request.md"
 req.write_text(content)
 
 result = subprocess.run(
-    ["open", "-a", "Draftflow", f"draftflow://?file={req}"],
+    ["open", "-a", "Draftflow", f"draftflow://?file={quote(str(req))}&cwd={quote(str(cwd))}"],
     capture_output=True, text=True
 )
 if result.returncode != 0:
@@ -41,15 +43,4 @@ if result.returncode != 0:
     }))
     sys.exit(0)
 
-print(json.dumps({
-    "hookSpecificOutput": {
-        "hookEventName": "UserPromptSubmit",
-        "additionalContext": (
-            "SYSTEM (df hook): The /df hook already ran. It created the bridge directory, "
-            "cleared any stale response.md, wrote request.md, and opened Draftflow. "
-            "Do NOT use any tools or run any commands — everything is set up. "
-            "Just tell the user: 'Opening in Draftflow — edit your draft, then click Send back. "
-            "Come back here and say done when ready.'"
-        )
-    }
-}))
+print(json.dumps({"decision": "block", "reason": ""}))

@@ -3,6 +3,9 @@ const path = require('path')
 const fs   = require('fs')
 const os   = require('os')
 
+const DEBUG_LOG = path.join(os.homedir(), '.claude', 'draftflow-debug.log')
+function dbg (...args) { try { fs.appendFileSync(DEBUG_LOG, new Date().toISOString() + ' ' + args.join(' ') + '\n') } catch (_) {} }
+
 let _tokenizer = null
 function getTokenizer () {
   if (_tokenizer) return _tokenizer
@@ -32,14 +35,20 @@ if (app.isPackaged) {
 
 app.on('open-url', (event, url) => {
   event.preventDefault()
+  dbg('open-url received:', url)
   const bridgeData = parseBridgeUrl(url)
+  dbg('parseBridgeUrl result:', JSON.stringify(bridgeData))
   if (!bridgeData) return
-  if (mainWindow) {
-    mainWindow.focus()
-    mainWindow.webContents.send('bridge-open', bridgeData)
-  } else {
-    pendingBridgeUrl = url
-  }
+  let sent = false
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.focus()
+      mainWindow.webContents.send('bridge-open', bridgeData)
+      sent = true
+      dbg('bridge-open sent to renderer')
+    }
+  } catch (e) { dbg('send error:', e.message) }
+  if (!sent) { pendingBridgeUrl = url; dbg('stored as pendingBridgeUrl') }
 })
 
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json')
@@ -92,6 +101,8 @@ function findProjectRoot (filePath) {
   return { root: path.dirname(filePath), found: false }
 }
 
+const IGNORED_DIRS = new Set(['node_modules', '.git', '.next', 'dist', 'build', '__pycache__', '.venv', 'venv'])
+
 function scanProjectTree (root) {
   const hasClaude = fs.existsSync(path.join(root, 'CLAUDE.md'))
   let entries
@@ -99,18 +110,22 @@ function scanProjectTree (root) {
   const files = []
   const dirs  = []
   for (const ent of entries) {
-    if (ent.name.startsWith('.') || ent.name === 'node_modules') continue
+    if (ent.name.startsWith('.')) continue
     if (ent.isDirectory()) {
+      if (IGNORED_DIRS.has(ent.name)) continue
       let subEntries
       try { subEntries = fs.readdirSync(path.join(root, ent.name), { withFileTypes: true }) } catch (_) { subEntries = [] }
       const subFiles = subEntries
-        .filter(e => !e.isDirectory() && /\.md$/i.test(e.name))
+        .filter(e => !e.isDirectory() && !e.name.startsWith('.'))
         .map(e => e.name)
-      if (subFiles.length) dirs.push({ name: ent.name, files: subFiles })
-    } else if (/\.md$/i.test(ent.name) && ent.name !== 'CLAUDE.md') {
+        .sort()
+      dirs.push({ name: ent.name, files: subFiles })
+    } else if (ent.name !== 'CLAUDE.md') {
       files.push(ent.name)
     }
   }
+  files.sort()
+  dirs.sort((a, b) => a.name.localeCompare(b.name))
   return { root, files, dirs, hasClaude }
 }
 
@@ -211,14 +226,17 @@ function createWindow () {
   mainWindow.loadFile('index.html')
 
   mainWindow.webContents.on('did-finish-load', () => {
+    dbg('did-finish-load, pendingBridgeUrl=', pendingBridgeUrl)
     if (pendingBridgeUrl) {
       const bridgeData = parseBridgeUrl(pendingBridgeUrl)
       pendingBridgeUrl = null
+      dbg('sending bridge-open from pending:', JSON.stringify(bridgeData))
       if (bridgeData) mainWindow.webContents.send('bridge-open', bridgeData)
     }
   })
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
+  mainWindow.once('destroyed', () => { mainWindow = null })
 
   // Warn on dirty close
   mainWindow.on('close', async (e) => {

@@ -182,6 +182,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .tree-subfile:hover { background:var(--surface2); color:var(--text-dim); }
 .tree-subfile.active { background:var(--accent-bg); border-left-color:var(--accent); color:var(--accent); }
 .tree-no-project { font-size:12px; color:var(--text-faint); padding:5px 14px; font-style:italic; }
+.tree-item.non-md, .tree-subfile.non-md { opacity:.5; cursor:default; }
+.tree-item.non-md:hover, .tree-subfile.non-md:hover { background:none; color:var(--text-dim); }
 
 /* ── SECTION TOGGLES ── */
 .tree-group-label { cursor:pointer; }
@@ -1247,6 +1249,22 @@ async function init () {
     return
   }
 
+  // Register bridge handler immediately — before any awaits — so the event
+  // isn't missed when Draftflow opens fresh in response to a /df call.
+  // Sets bridgeOpened = true so init() skips restoring lastOpenFile (which
+  // would otherwise overwrite the cwd-based tree).
+  let bridgeOpened = false
+  window.api.onBridgeOpen(async (data) => {
+    bridgeOpened = true
+    const filePath = typeof data === 'string' ? data : data.file
+    const cwd      = typeof data === 'string' ? null  : data.cwd
+    console.log('[bridge] onBridgeOpen fired', { filePath, cwd })
+    await openFilePath(filePath, cwd)
+    console.log('[bridge] openFilePath done, currentProjectRoot=', currentProjectRoot)
+    document.getElementById('btn-sendback').style.display = 'flex'
+    showToast('Opened from Claude · edit and send back', 'skill')
+  })
+
   settings = await window.api.loadSettings()
   applyFontSize(settings.fontSize || 'small')
   applyTheme(settings.theme || 'dark')
@@ -1259,17 +1277,9 @@ async function init () {
 
   await initScratch()
 
-  if (settings.lastOpenFile) {
+  if (settings.lastOpenFile && !bridgeOpened) {
     await openFilePath(settings.lastOpenFile)
   }
-
-  window.api.onBridgeOpen(async (data) => {
-    const filePath = typeof data === 'string' ? data : data.file
-    const cwd      = typeof data === 'string' ? null  : data.cwd
-    await openFilePath(filePath, cwd)
-    document.getElementById('btn-sendback').style.display = 'flex'
-    showToast('Opened from Claude · edit and send back', 'skill')
-  })
 }
 
 // ─────────────────────────────────────────────
@@ -1485,6 +1495,7 @@ async function updateProjectTree (filePath, cwdOverride = null) {
   } else {
     ;({ root, found } = await window.api.findProjectRoot(filePath))
   }
+  console.log('[tree] updateProjectTree root=', root, 'override=', cwdOverride)
   if (root !== currentProjectRoot) {
     currentProjectRoot = root
     folderExpanded = {}
@@ -1532,9 +1543,10 @@ function renderProjectTree () {
     if (expanded) {
       for (const file of dir.files) {
         const fp = root + '/' + dir.name + '/' + file
+        const isMd = /\.md$/i.test(file)
         const active = fp === currentFilePath
-        html += `<div class="tree-subfile ${active ? 'active' : ''}" data-path="${escAttr(fp)}" title="${escAttr(fp)}">
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+        html += `<div class="tree-subfile ${active ? 'active' : ''} ${isMd ? '' : 'non-md'}" ${isMd ? `data-path="${escAttr(fp)}"` : ''} title="${escAttr(fp)}">
+          ${fileIcon(file)}
           <span>${escHtml(file)}</span>
         </div>`
       }
@@ -1543,14 +1555,15 @@ function renderProjectTree () {
 
   for (const file of files) {
     const fp = root + '/' + file
+    const isMd = /\.md$/i.test(file)
     const active = fp === currentFilePath
-    html += `<div class="tree-item ${active ? 'active' : ''}" data-path="${escAttr(fp)}" title="${escAttr(fp)}">
-      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>
+    html += `<div class="tree-item ${active ? 'active' : ''} ${isMd ? '' : 'non-md'}" ${isMd ? `data-path="${escAttr(fp)}"` : ''} title="${escAttr(fp)}">
+      ${fileIcon(file)}
       <span class="tree-item-name">${escHtml(file)}</span>
     </div>`
   }
 
-  if (!html) html = '<div class="tree-empty">no markdown files</div>'
+  if (!html) html = '<div class="tree-empty">no files</div>'
   el.innerHTML = html
 
   el.querySelectorAll('[data-path]').forEach(item => {
@@ -2401,6 +2414,24 @@ function escHtml (str) {
     .replace(/"/g, '&quot;')
 }
 function escAttr (str) { return escHtml(str) }
+
+function fileIcon (name) {
+  const ext = name.split('.').pop().toLowerCase()
+  // code file
+  if (['js','ts','jsx','tsx','py','rb','go','rs','java','c','cpp','cs','swift','kt','sh','bash','zsh'].includes(ext))
+    return '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><polyline points="3,4 1,6 3,8"/><polyline points="9,4 11,6 9,8"/><line x1="7" y1="2" x2="5" y2="10"/></svg>'
+  // image
+  if (['png','jpg','jpeg','gif','svg','webp','ico'].includes(ext))
+    return '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="10" height="8" rx="1"/><circle cx="4" cy="5" r="1"/><polyline points="1,9 4,6 6,8 8,6 11,9"/></svg>'
+  // data / config
+  if (['json','yaml','yml','toml','ini','env','xml','csv'].includes(ext))
+    return '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/><line x1="4" y1="6" x2="8" y2="6"/><line x1="4" y1="8" x2="7" y2="8"/></svg>'
+  // markdown
+  if (ext === 'md')
+    return '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>'
+  // default
+  return '<svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 1h5l3 3v7H2V1z"/></svg>'
+}
 
 // ─────────────────────────────────────────────
 // Search Palette (⌘P)
