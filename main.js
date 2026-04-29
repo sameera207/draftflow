@@ -270,6 +270,7 @@ function createWindow () {
 }
 
 app.whenReady().then(() => {
+  installIntegration().catch(_ => {})   // silent — never block startup
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -407,44 +408,47 @@ ipcMain.handle('send-back', async (_e, content) => {
   }
 })
 
+function installIntegration () {
+  // 1. Install /df command
+  const cmdSrc  = path.join(__dirname, 'commands', 'df.md')
+  const cmdDest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
+  fs.mkdirSync(path.dirname(cmdDest), { recursive: true })
+  fs.copyFileSync(cmdSrc, cmdDest)
+
+  // 2. Install df_bridge hook script (always overwrite so updates stay in sync)
+  const hookSrc  = path.join(__dirname, 'hooks', 'df_bridge.py')
+  const hookDest = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
+  fs.mkdirSync(path.dirname(hookDest), { recursive: true })
+  fs.copyFileSync(hookSrc, hookDest)
+  fs.chmodSync(hookDest, 0o755)
+
+  // 3. Register hook in ~/.claude/settings.json
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json')
+  let claudeSettings = {}
+  try { claudeSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) } catch (_) {}
+
+  const hookEntry = { type: 'command', command: `python3 ${hookDest}` }
+  if (!claudeSettings.hooks) claudeSettings.hooks = {}
+  if (!claudeSettings.hooks.UserPromptSubmit) claudeSettings.hooks.UserPromptSubmit = []
+
+  const already = claudeSettings.hooks.UserPromptSubmit.some(h =>
+    Array.isArray(h.hooks) && h.hooks.some(e => e.command && e.command.includes('df_bridge.py'))
+  )
+  if (!already) {
+    claudeSettings.hooks.UserPromptSubmit.push({ hooks: [hookEntry] })
+  } else {
+    claudeSettings.hooks.UserPromptSubmit = claudeSettings.hooks.UserPromptSubmit.map(h => {
+      if (!Array.isArray(h.hooks)) return h
+      return { ...h, hooks: h.hooks.map(e => e.command && e.command.includes('df_bridge.py') ? hookEntry : e) }
+    })
+  }
+
+  fs.writeFileSync(settingsPath, JSON.stringify(claudeSettings, null, 2))
+}
+
 ipcMain.handle('install-df-command', async () => {
   try {
-    // 1. Install /df command
-    const cmdSrc  = path.join(__dirname, 'commands', 'df.md')
-    const cmdDest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
-    fs.mkdirSync(path.dirname(cmdDest), { recursive: true })
-    fs.copyFileSync(cmdSrc, cmdDest)
-
-    // 2. Install df_bridge hook script
-    const hookSrc  = path.join(__dirname, 'hooks', 'df_bridge.py')
-    const hookDest = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
-    fs.mkdirSync(path.dirname(hookDest), { recursive: true })
-    fs.copyFileSync(hookSrc, hookDest)
-    fs.chmodSync(hookDest, 0o755)
-
-    // 3. Register hook in ~/.claude/settings.json
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json')
-    let claudeSettings = {}
-    try { claudeSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) } catch (_) {}
-
-    const hookEntry = { type: 'command', command: `python3 ${hookDest}` }
-    if (!claudeSettings.hooks) claudeSettings.hooks = {}
-    if (!claudeSettings.hooks.UserPromptSubmit) claudeSettings.hooks.UserPromptSubmit = []
-
-    const already = claudeSettings.hooks.UserPromptSubmit.some(h =>
-      Array.isArray(h.hooks) && h.hooks.some(e => e.command && e.command.includes('df_bridge.py'))
-    )
-    if (!already) {
-      claudeSettings.hooks.UserPromptSubmit.push({ hooks: [hookEntry] })
-    } else {
-      // Update existing entry in case path changed
-      claudeSettings.hooks.UserPromptSubmit = claudeSettings.hooks.UserPromptSubmit.map(h => {
-        if (!Array.isArray(h.hooks)) return h
-        return { ...h, hooks: h.hooks.map(e => e.command && e.command.includes('df_bridge.py') ? hookEntry : e) }
-      })
-    }
-
-    fs.writeFileSync(settingsPath, JSON.stringify(claudeSettings, null, 2))
+    installIntegration()
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err.message }
