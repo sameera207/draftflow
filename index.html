@@ -763,7 +763,8 @@ html.light .token-danger { color: #b04030 !important; }
 }
 .attach-chip.selected .chip-indicator { background: #64b48c; border-color: #64b48c; }
 .attach-chip:not(.selected) { background: var(--surface2); color: var(--text-faint); }
-.attach-chip:not(.selected) .chip-indicator { background: transparent; border-color: var(--border2); }
+.attach-chip:not(.selected) .chip-indicator { background: var(--accent); opacity: 0.45; border-color: transparent; }
+.send-bar-attach-hint { font-size: 10px; color: var(--text-faint); opacity: 0.7; margin-left: 6px; letter-spacing: .02em; }
 .chip-indicator {
   width: 7px; height: 7px; border-radius: 50%; border: 1px solid; flex-shrink: 0; transition: background .1s;
 }
@@ -869,15 +870,11 @@ html.light .token-danger { color: #b04030 !important; }
         <!-- SEND BAR -->
         <div id="send-bar" class="send-bar">
           <div id="send-bar-attach" class="send-bar-attach" style="display:none;">
-            <span class="send-bar-attach-label">attach skills</span>
+            <span class="send-bar-attach-label">suggested skills<span class="send-bar-attach-hint">click to add · click again to remove</span></span>
             <div id="attach-chips"></div>
           </div>
           <div class="send-bar-actions">
             <span id="send-token-count" class="send-token-count">~0 tokens</span>
-            <button class="claude-btn" id="btn-copy-claude">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
-              copy to Claude
-            </button>
           </div>
         </div>
 
@@ -938,9 +935,9 @@ html.light .token-danger { color: #b04030 !important; }
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7H2M6 3L2 7l4 4"/></svg>
         send back
       </button>
-      <button class="claude-btn" id="btn-claude" style="display:none">
+      <button class="claude-btn" id="btn-claude">
         <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
-        send to claude
+        copy to Claude
       </button>
     </div>
   </div>
@@ -1163,7 +1160,9 @@ function renderAttachChips() {
 
 function renderSendBar(suggestions) {
   currentSuggestions = suggestions
-  attachedSkillIds = new Set(suggestions.map(s => s.id))
+  // Keep only IDs the user explicitly attached that still exist in new suggestions
+  const newIds = new Set(suggestions.map(s => s.id))
+  for (const id of attachedSkillIds) { if (!newIds.has(id)) attachedSkillIds.delete(id) }
   const attachRow = document.getElementById('send-bar-attach')
   if (attachRow) attachRow.style.display = suggestions.length > 0 ? 'flex' : 'none'
   renderAttachChips()
@@ -1293,11 +1292,17 @@ async function init () {
       updatePreview()
       document.getElementById('review-badge').classList.add('visible')
       document.getElementById('btn-sendback').style.display = 'flex'
+      document.getElementById('btn-claude').style.display = 'none'
       showToast('Plan loaded in preview · type your notes in the editor', 'skill')
+      // Update file panel so recent/project sections reflect the correct cwd
+      if (cwd) await updateProjectTree(filePath, cwd)
+      settings = await window.api.loadSettings()
+      renderFilePanel()
     } else {
       await openFilePath(filePath, cwd)
       console.log('[bridge] openFilePath done, currentProjectRoot=', currentProjectRoot)
       document.getElementById('btn-sendback').style.display = 'flex'
+      document.getElementById('btn-claude').style.display = 'none'
       showToast('Opened from Claude · edit and send back', 'skill')
     }
   })
@@ -2399,16 +2404,6 @@ document.getElementById('btn-sendback').addEventListener('click', async () => {
 // Send to Claude
 // ─────────────────────────────────────────────
 document.getElementById('btn-claude').addEventListener('click', async () => {
-  const text = editorEl.value
-  if (!text.trim()) { showToast('Nothing to copy', 'error'); return }
-  try {
-    if (window.api) await window.api.copyToClipboard(text)
-    else await navigator.clipboard.writeText(text)
-    showToast('Copied · ready to paste into Claude Code', 'skill')
-  } catch (_) { showToast('Copy failed', 'error') }
-})
-
-document.getElementById('btn-copy-claude').addEventListener('click', async () => {
   const promptText = editorEl.value
   if (!promptText.trim()) { showToast('Nothing to copy', 'error'); return }
   try {

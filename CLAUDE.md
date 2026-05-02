@@ -21,6 +21,9 @@ Draftflow is a single-window Electron app. All code lives in three files:
 - **`preload.js`** — Context bridge. Exposes `window.api` to the renderer with a strict allowlist of IPC calls. No direct Node access in the renderer.
 - **`index.html`** — The entire renderer: all UI, CSS (CSS variables for theming), and JavaScript in one file. Uses `marked` and `mermaid` from `node_modules` loaded via `<script>` tags.
 
+## New features
+When building new features, add them to the features.md file
+
 ### DO NOT DO 
 We are building a product here, think of any changes that needs to be distributed with a newer version. 
 

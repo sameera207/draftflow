@@ -77,6 +77,9 @@ function persistSettings (s) {
 
 function addRecentFile (filePath) {
   if (!settings.recentFiles) settings.recentFiles = []
+  // Skip transient bridge files — they are not user documents
+  const bridgeDir = path.join(os.homedir(), '.claude', 'editor-bridge')
+  if (filePath.startsWith(bridgeDir)) return
   let preview = ''
   try {
     const content = fs.readFileSync(filePath, 'utf8')
@@ -270,7 +273,7 @@ function createWindow () {
 }
 
 app.whenReady().then(() => {
-  installIntegration().catch(_ => {})   // silent — never block startup
+  try { installIntegration() } catch (_) {}   // silent — never block startup
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -415,31 +418,56 @@ function installIntegration () {
   fs.mkdirSync(path.dirname(cmdDest), { recursive: true })
   fs.copyFileSync(cmdSrc, cmdDest)
 
-  // 2. Install df_bridge hook script (always overwrite so updates stay in sync)
-  const hookSrc  = path.join(__dirname, 'hooks', 'df_bridge.py')
-  const hookDest = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
-  fs.mkdirSync(path.dirname(hookDest), { recursive: true })
-  fs.copyFileSync(hookSrc, hookDest)
-  fs.chmodSync(hookDest, 0o755)
+  // 2. Install hook scripts (always overwrite so updates stay in sync)
+  const hooksDir = path.join(os.homedir(), '.claude', 'hooks')
+  fs.mkdirSync(hooksDir, { recursive: true })
 
-  // 3. Register hook in ~/.claude/settings.json
+  const hookFiles = ['df_bridge.py', 'save_last_response.py']
+  for (const fname of hookFiles) {
+    const src  = path.join(__dirname, 'hooks', fname)
+    const dest = path.join(hooksDir, fname)
+    fs.copyFileSync(src, dest)
+    fs.chmodSync(dest, 0o755)
+  }
+
+  const hookDest         = path.join(hooksDir, 'df_bridge.py')
+  const saveRespHookDest = path.join(hooksDir, 'save_last_response.py')
+
+  // 3. Register hooks in ~/.claude/settings.json
   const settingsPath = path.join(os.homedir(), '.claude', 'settings.json')
   let claudeSettings = {}
   try { claudeSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) } catch (_) {}
 
-  const hookEntry = { type: 'command', command: `python3 ${hookDest}` }
   if (!claudeSettings.hooks) claudeSettings.hooks = {}
-  if (!claudeSettings.hooks.UserPromptSubmit) claudeSettings.hooks.UserPromptSubmit = []
 
-  const already = claudeSettings.hooks.UserPromptSubmit.some(h =>
+  // UserPromptSubmit: df_bridge
+  if (!claudeSettings.hooks.UserPromptSubmit) claudeSettings.hooks.UserPromptSubmit = []
+  // 610 s timeout: /df p polls in-hook for up to 10 min while the user edits
+  const bridgeEntry  = { type: 'command', command: `python3 ${hookDest}`, timeout: 610000 }
+  const bridgeExists = claudeSettings.hooks.UserPromptSubmit.some(h =>
     Array.isArray(h.hooks) && h.hooks.some(e => e.command && e.command.includes('df_bridge.py'))
   )
-  if (!already) {
-    claudeSettings.hooks.UserPromptSubmit.push({ hooks: [hookEntry] })
+  if (!bridgeExists) {
+    claudeSettings.hooks.UserPromptSubmit.push({ hooks: [bridgeEntry] })
   } else {
     claudeSettings.hooks.UserPromptSubmit = claudeSettings.hooks.UserPromptSubmit.map(h => {
       if (!Array.isArray(h.hooks)) return h
-      return { ...h, hooks: h.hooks.map(e => e.command && e.command.includes('df_bridge.py') ? hookEntry : e) }
+      return { ...h, hooks: h.hooks.map(e => e.command && e.command.includes('df_bridge.py') ? bridgeEntry : e) }
+    })
+  }
+
+  // Stop: save_last_response
+  if (!claudeSettings.hooks.Stop) claudeSettings.hooks.Stop = []
+  const saveEntry  = { type: 'command', command: `python3 ${saveRespHookDest}` }
+  const saveExists = claudeSettings.hooks.Stop.some(h =>
+    Array.isArray(h.hooks) && h.hooks.some(e => e.command && e.command.includes('save_last_response.py'))
+  )
+  if (!saveExists) {
+    claudeSettings.hooks.Stop.push({ hooks: [saveEntry] })
+  } else {
+    claudeSettings.hooks.Stop = claudeSettings.hooks.Stop.map(h => {
+      if (!Array.isArray(h.hooks)) return h
+      return { ...h, hooks: h.hooks.map(e => e.command && e.command.includes('save_last_response.py') ? saveEntry : e) }
     })
   }
 
@@ -456,9 +484,10 @@ ipcMain.handle('install-df-command', async () => {
 })
 
 ipcMain.handle('df-command-installed', async () => {
-  const cmdDest  = path.join(os.homedir(), '.claude', 'commands', 'df.md')
-  const hookDest = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
-  return fs.existsSync(cmdDest) && fs.existsSync(hookDest)
+  const cmdDest      = path.join(os.homedir(), '.claude', 'commands', 'df.md')
+  const hookDest     = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
+  const saveRespDest = path.join(os.homedir(), '.claude', 'hooks', 'save_last_response.py')
+  return fs.existsSync(cmdDest) && fs.existsSync(hookDest) && fs.existsSync(saveRespDest)
 })
 ipcMain.handle('count-tokens', async (_e, text) => {
   const t = getTokenizer()
