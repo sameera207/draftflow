@@ -19,18 +19,35 @@ const OUT             = path.join(ROOT, 'docs', 'user-guide.md')
 // Human-readable captions matched to screenshot filenames.
 // Claude uses these as context when writing the guide.
 const CAPTIONS = {
-  '01-editor-default.png':    'The default Draftflow editor on launch — clean, dark, ready to write',
-  '02-split-mode.png':        'Split mode: Markdown editor on the left, live rendered preview on the right',
-  '03-preview-mode.png':      'Preview-only mode for reading the rendered output without distractions',
-  '04-file-panel.png':        'The file panel: recent files at the top, project tree below, skills and agents listed',
-  '05-palette-open.png':      'The quick-open palette (⌘P) searching across files, skills, and agents simultaneously',
-  '06-skill-autocomplete.png':'Inline skill autocomplete triggered by typing # — fuzzy matches with hover preview',
-  '07-agent-autocomplete.png':'Inline agent autocomplete triggered by typing @ — fuzzy matches with descriptions',
-  '08-scratchpad.png':        'The persistent scratchpad panel (⌘K) — survives sessions, separate from the main draft',
-  '09-settings.png':          'Settings panel: skill scan paths, Anthropic API key, install /df command',
-  '10-light-theme.png':       'Light theme in split mode',
-  '11-review-mode.png':       "Review mode: Claude's last response loaded in the preview; editor is free for notes",
-  '12-plan-edit-mode.png':    "Plan-edit mode: a Claude plan loaded in preview; editor stays writable for annotations",
+  // ── Editor
+  '01-editor-default.png':       'The default Draftflow editor on launch — clean, dark, ready to write',
+  '02-split-mode.png':           'Split mode: Markdown editor on the left, live rendered preview on the right',
+  '03-preview-mode.png':         'Preview-only mode for reading the rendered output without distractions',
+  '04-mermaid-preview.png':      'Mermaid diagrams render live in the preview pane — write the fenced code block, see the diagram instantly',
+  '14-status-bar.png':           'Status bar: real-time word count, token count, cursor position (Ln/Col), and the Send to Claude button',
+
+  // ── Project & File Management
+  '06-file-panel.png':           'The file panel: recent files at the top (with first-line preview), project tree below, skills and agents listed',
+  '07-palette-open.png':         'The quick-open palette (⌘P) — fuzzy searches files, recent items, skills, and agents simultaneously',
+
+  // ── Skill & Agent Autocomplete
+  '08-skill-autocomplete.png':   'Inline skill autocomplete triggered by # — fuzzy matches with the skill description shown in the right-hand preview pane',
+  '09-agent-autocomplete.png':   'Inline agent autocomplete triggered by @ — fuzzy matches with description preview',
+  '05-agent-badge-preview.png':  '@agentname references in the preview pane render as styled green badges',
+
+  // ── Scratchpad
+  '10-scratchpad.png':           'The persistent scratchpad (⌘K) — separate from the main draft, auto-saved across sessions',
+
+  // ── Settings
+  '11-settings.png':             'Settings panel: skill scan paths with labels, Anthropic API key (show/hide toggle), token warning thresholds, and /df reinstall',
+
+  // ── Appearance
+  '12-font-size-large.png':      'Large font size mode — toggle between S / M / L using the buttons in the toolbar',
+  '13-light-theme.png':          'Light theme in split mode',
+
+  // ── Claude Code Bridge
+  '15-review-mode.png':          "Review mode (/df p): Claude's last response loaded read-only in the preview; editor is free for notes; Send back button sends only the notes",
+  '16-plan-edit-mode.png':       "Plan-edit mode (/df p on a plan): the plan loads directly into the editor for annotation or rewriting; Send back sends the full edited plan",
 }
 
 async function main () {
