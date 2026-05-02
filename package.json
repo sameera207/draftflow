@@ -7,11 +7,18 @@
     "start": "electron .",
     "dev": "electron --inspect .",
     "dist": "electron-builder --mac",
-    "install-local": "npm run dist -- --dir --arm64 && rm -rf /Applications/Draftflow.app && cp -R dist/mac-arm64/Draftflow.app /Applications/Draftflow.app"
+    "install-local": "npm run dist -- --dir --arm64 && rm -rf /Applications/Draftflow.app && cp -R dist/mac-arm64/Draftflow.app /Applications/Draftflow.app",
+    "screenshots": "node scripts/take-screenshots.js",
+    "guide": "node scripts/generate-guide.js",
+    "docs": "npm run screenshots && npm run guide"
   },
   "devDependencies": {
     "electron": "^34.5.8",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "playwright": "^1.44.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0"
   },
   "build": {
     "appId": "dev.draftflow.app",
