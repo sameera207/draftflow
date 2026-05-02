@@ -1281,17 +1281,45 @@ async function init () {
     return
   }
 
-  // Update availability banner
-  window.api.onUpdateAvailable(({ version, url }) => {
-    const badge = document.getElementById('update-badge')
-    document.getElementById('update-badge-label').textContent = `${version} available`
+  // Update availability banner — states: idle → downloading → done | error
+  window.api.onUpdateAvailable(({ version, url, downloadUrl }) => {
+    const badge   = document.getElementById('update-badge')
+    const label   = document.getElementById('update-badge-label')
+    const dismiss = document.getElementById('update-dismiss')
+    let downloading = false
+
+    label.textContent = `${version} available`
     badge.classList.add('visible')
-    badge.addEventListener('click', (e) => {
+
+    badge.addEventListener('click', async (e) => {
       if (e.target.id === 'update-dismiss') {
         badge.classList.remove('visible')
-      } else {
-        window.api.openUrl(url)
+        return
       }
+      if (downloading) return
+      if (!downloadUrl) { window.api.openUrl(url); return }
+
+      downloading = true
+      dismiss.style.display = 'none'
+      label.textContent = 'starting download…'
+      await window.api.startDownload(downloadUrl, version)
+    })
+
+    window.api.onDownloadProgress(pct => {
+      label.textContent = `downloading ${pct}%`
+    })
+
+    window.api.onDownloadDone(() => {
+      downloading = false
+      label.textContent = 'drag to Applications in Finder'
+      dismiss.style.display = ''
+    })
+
+    window.api.onDownloadError(() => {
+      downloading = false
+      label.textContent = 'download failed — click to open release page'
+      dismiss.style.display = ''
+      badge.addEventListener('click', () => window.api.openUrl(url), { once: true })
     })
   })
 

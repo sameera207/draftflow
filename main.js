@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard, shell } = require('electron')
-const path = require('path')
-const fs   = require('fs')
-const os   = require('os')
+const path  = require('path')
+const fs    = require('fs')
+const os    = require('os')
+const https = require('https')
 
 const DEBUG_LOG = path.join(os.homedir(), '.claude', 'draftflow-debug.log')
 function dbg (...args) { try { fs.appendFileSync(DEBUG_LOG, new Date().toISOString() + ' ' + args.join(' ') + '\n') } catch (_) {} }
@@ -313,10 +314,56 @@ async function checkForUpdate (win) {
     const latest = data.tag_name          // e.g. "v0.2.0"
     const current = app.getVersion()      // e.g. "0.1.0"
     if (!latest || !isNewerVersion(latest, current)) return
+    const asset = (data.assets || []).find(a => a.name.endsWith('.dmg'))
     if (win && !win.isDestroyed()) {
-      win.webContents.send('update-available', { version: latest, url: data.html_url })
+      win.webContents.send('update-available', {
+        version:     latest,
+        url:         data.html_url,
+        downloadUrl: asset ? asset.browser_download_url : null,
+        size:        asset ? asset.size : 0,
+      })
     }
   } catch (_) {}  // network errors are silent — never bother the user
+}
+
+// Streams a URL to destPath, calling onProgress(0–100) as bytes arrive.
+// Follows up to 5 redirects (GitHub asset URLs redirect to S3).
+function downloadFile (url, destPath, onProgress, redirects = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirects > 5) { reject(new Error('Too many redirects')); return }
+    https.get(url, { headers: { 'User-Agent': 'Draftflow' } }, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        downloadFile(res.headers.location, destPath, onProgress, redirects + 1)
+          .then(resolve).catch(reject)
+        return
+      }
+      if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return }
+      const total    = parseInt(res.headers['content-length'] || '0', 10)
+      let received   = 0
+      const file     = fs.createWriteStream(destPath)
+      res.on('data', chunk => {
+        received += chunk.length
+        if (total) onProgress(Math.round(received / total * 100))
+      })
+      res.pipe(file)
+      file.on('finish', () => file.close(resolve))
+      file.on('error',  reject)
+    }).on('error', reject)
+  })
+}
+
+async function runDownload (downloadUrl, version) {
+  const dest = path.join(os.tmpdir(), `Draftflow-${version}.dmg`)
+  const send = (ch, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(ch, data)
+  }
+  try {
+    await downloadFile(downloadUrl, dest, pct => send('download-progress', pct))
+    await shell.openPath(dest)   // mounts the DMG — Finder opens automatically
+    send('download-done')
+  } catch (err) {
+    send('download-error', err.message)
+  }
 }
 
 // ── IPC handlers ──────────────────────────────────────────────────────────────
@@ -567,3 +614,7 @@ ipcMain.handle('maximize',       async ()             => {
 })
 ipcMain.handle('close',          async ()             => mainWindow.close())
 ipcMain.handle('open-url',       async (_e, url)      => { await shell.openExternal(url); return true })
+ipcMain.handle('start-download', async (_e, { downloadUrl, version }) => {
+  runDownload(downloadUrl, version)   // fire-and-forget; progress via events
+  return { ok: true }
+})
