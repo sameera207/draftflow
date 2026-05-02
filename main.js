@@ -276,7 +276,7 @@ function createWindow () {
 }
 
 app.whenReady().then(() => {
-  try { installIntegration() } catch (_) {}   // silent — never block startup
+  try { installIntegration() } catch (e) { dbg('installIntegration failed:', e.message) }
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -493,12 +493,20 @@ ipcMain.handle('send-back', async (_e, content) => {
   }
 })
 
+// Writes a file from the app bundle to dest, works inside an asar archive.
+// fs.copyFileSync cannot read from inside asar — read+write always works.
+function installFile (src, dest) {
+  const content = fs.readFileSync(src, 'utf8')
+  fs.writeFileSync(dest, content, { encoding: 'utf8', mode: 0o755 })
+  dbg('installFile:', src, '→', dest)
+}
+
 function installIntegration () {
   // 1. Install /df command
   const cmdSrc  = path.join(__dirname, 'commands', 'df.md')
   const cmdDest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
   fs.mkdirSync(path.dirname(cmdDest), { recursive: true })
-  fs.copyFileSync(cmdSrc, cmdDest)
+  installFile(cmdSrc, cmdDest)
 
   // 2. Install hook scripts (always overwrite so updates stay in sync)
   const hooksDir = path.join(os.homedir(), '.claude', 'hooks')
@@ -508,8 +516,7 @@ function installIntegration () {
   for (const fname of hookFiles) {
     const src  = path.join(__dirname, 'hooks', fname)
     const dest = path.join(hooksDir, fname)
-    fs.copyFileSync(src, dest)
-    fs.chmodSync(dest, 0o755)
+    installFile(src, dest)
   }
 
   const hookDest         = path.join(hooksDir, 'df_bridge.py')

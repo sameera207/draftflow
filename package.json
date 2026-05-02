@@ -23,6 +23,7 @@
   "build": {
     "appId": "dev.draftflow.app",
     "productName": "Draftflow",
+    "asarUnpack": ["hooks/**", "commands/**"],
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "assets/icon.icns",
