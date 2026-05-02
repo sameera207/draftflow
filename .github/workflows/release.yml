@@ -1,25 +1,81 @@
 name: Release
 
+# Trigger manually from the Actions tab.
+# Choose the bump type — patch (0.1.x), minor (0.x.0), or major (x.0.0).
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+# Needs write access to push the version commit + tag and create the release.
+permissions:
+  contents: write
 
 jobs:
-  build:
-    runs-on: macos-latest
+  release:
+    runs-on: macos-14   # Apple Silicon runner — builds arm64 natively
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Use the default GITHUB_TOKEN so the push in a later step
+          # can trigger other workflows if needed.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and publish
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npm run dist -- --publish always
+      # Bump version in package.json + package-lock.json only (no git commit yet).
+      - name: Bump version
+        run: npm version ${{ github.event.inputs.bump }} --no-git-tag-version
+
+      # Expose the new version string to later steps.
+      - name: Read new version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Build the arm64 DMG. --publish never so electron-builder doesn't try
+      # to upload anything itself — we handle that below.
+      - name: Build DMG
+        run: npx electron-builder --mac --arm64 --publish never
+
+      # electron-builder outputs Draftflow-{version}-arm64.dmg.
+      # Rename to drop the arch suffix so the filename matches the Homebrew
+      # cask URL and the in-app update checker.
+      - name: Rename DMG
+        run: |
+          mv "dist/Draftflow-${{ steps.ver.outputs.version }}-arm64.dmg" \
+             "dist/Draftflow-${{ steps.ver.outputs.version }}.dmg"
+
+      # Commit the version bump, tag it, push both to main.
+      - name: Commit and tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: release v${{ steps.ver.outputs.version }}"
+          git tag "v${{ steps.ver.outputs.version }}"
+          git push origin main --follow-tags
+
+      # Create the GitHub release, attach the DMG, auto-generate release notes
+      # from commits / PRs since the previous tag.
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          files: dist/Draftflow-${{ steps.ver.outputs.version }}.dmg
