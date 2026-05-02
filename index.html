@@ -1077,8 +1077,9 @@ let pendingSettings = null   // settings being edited in modal
 let panelOpen       = true
 let currentMode     = 'edit'
 let toastTimer      = null
-let reviewMode      = false   // true when opened via /df p
-let reviewContent   = ''      // plan shown in preview pane during review
+let reviewMode      = false   // true when /df p opens non-plan content (preview-only)
+let planEditMode    = false   // true when /df p opens a plan (editable in editor)
+let reviewContent   = ''      // content shown in preview pane during review mode
 
 // ─────────────────────────────────────────────
 // Skill Suggestion Service
@@ -1298,6 +1299,28 @@ async function init () {
       if (cwd) await updateProjectTree(filePath, cwd)
       settings = await window.api.loadSettings()
       renderFilePanel()
+    } else if (mode === 'plan-edit') {
+      // Plan-edit mode: plan goes into editor, preview tracks edits live
+      const result = await window.api.readFile(filePath)
+      editorEl.value = result ? result.content : ''
+      planEditMode   = true
+      reviewMode     = false
+      reviewContent  = ''
+      setDirty(false)
+      updateWordCount()
+      updateTokenCount()
+      currentMode = 'split'
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'split'))
+      document.getElementById('preview-pane').classList.add('visible')
+      editorEl.style.display = ''
+      updatePreview()
+      document.getElementById('review-badge').classList.add('visible')
+      document.getElementById('btn-sendback').style.display = 'flex'
+      document.getElementById('btn-claude').style.display = 'none'
+      showToast('Plan loaded · edit directly and send back', 'skill')
+      if (cwd) await updateProjectTree(filePath, cwd)
+      settings = await window.api.loadSettings()
+      renderFilePanel()
     } else {
       await openFilePath(filePath, cwd)
       console.log('[bridge] openFilePath done, currentProjectRoot=', currentProjectRoot)
@@ -1403,7 +1426,8 @@ async function openFilePath (filePath, cwdOverride = null) {
   if (!result) { showToast('Could not open file', 'error'); return }
   editorEl.value = result.content
   currentFilePath = filePath
-  reviewMode = false
+  reviewMode   = false
+  planEditMode = false
   reviewContent = ''
   document.getElementById('review-badge').classList.remove('visible')
   setDirty(false)
@@ -2387,13 +2411,16 @@ document.getElementById('btn-save').addEventListener('click', handleSave)
 // ─────────────────────────────────────────────
 document.getElementById('btn-sendback').addEventListener('click', async () => {
   const text = editorEl.value
-  if (!text.trim() && !reviewMode) { showToast('Nothing to send back', 'error'); return }
+  if (!text.trim() && !reviewMode && !planEditMode) { showToast('Nothing to send back', 'error'); return }
   try {
     const result = await window.api.sendBack(text)
     if (!result.ok) throw new Error(result.error)
     reviewMode    = false
+    planEditMode  = false
     reviewContent = ''
     document.getElementById('review-badge').classList.remove('visible')
+    document.getElementById('btn-sendback').style.display = 'none'
+    document.getElementById('btn-claude').style.display = 'flex'
     showToast('Sent back to Claude — say "done" in Claude Code', 'skill')
   } catch (err) {
     showToast('Send back failed: ' + err.message, 'error')

@@ -41,6 +41,7 @@ def poll(resp_path, timeout=600):
 if after.lower() in ("p", "-p"):
     # Read last assistant text from the current session's transcript.
     last_text = ""
+    last_is_plan = False
     if transcript_path and pathlib.Path(transcript_path).exists():
         lines = pathlib.Path(transcript_path).read_text().strip().splitlines()
         for line in reversed(lines):
@@ -55,16 +56,19 @@ if after.lower() in ("p", "-p"):
             parts = [b.get("text", "") for b in content_blocks
                      if isinstance(b, dict) and b.get("type") == "text"]
             # Plan mode stores content in ExitPlanMode tool_use input, not text blocks
+            is_plan = False
             if not any(parts):
                 for b in content_blocks:
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "ExitPlanMode":
                         plan = b.get("input", {}).get("plan", "")
                         if plan:
                             parts.append(plan)
+                            is_plan = True
                         break
             text = "\n".join(p for p in parts if p).strip()
             if text:
                 last_text = text
+                last_is_plan = is_plan
                 break
 
     if not last_text:
@@ -77,9 +81,10 @@ if after.lower() in ("p", "-p"):
     review_file = bridge / "last-response.md"
     review_file.write_text(last_text)
 
+    bridge_mode = "plan-edit" if last_is_plan else "review"
     result = subprocess.run(
         ["open", "-a", "Draftflow",
-         f"draftflow://?file={quote(str(review_file))}&cwd={quote(str(cwd))}&mode=review"],
+         f"draftflow://?file={quote(str(review_file))}&cwd={quote(str(cwd))}&mode={bridge_mode}"],
         capture_output=True, text=True
     )
     if result.returncode != 0:
