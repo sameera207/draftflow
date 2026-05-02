@@ -576,7 +576,24 @@ ipcMain.handle('df-command-installed', async () => {
   const cmdDest      = path.join(os.homedir(), '.claude', 'commands', 'df.md')
   const hookDest     = path.join(os.homedir(), '.claude', 'hooks', 'df_bridge.py')
   const saveRespDest = path.join(os.homedir(), '.claude', 'hooks', 'save_last_response.py')
-  return fs.existsSync(cmdDest) && fs.existsSync(hookDest) && fs.existsSync(saveRespDest)
+
+  if (!fs.existsSync(cmdDest) || !fs.existsSync(hookDest) || !fs.existsSync(saveRespDest)) {
+    return { ok: false, reason: 'Hook files not found in ~/.claude/hooks/' }
+  }
+
+  // Files exist — also verify the hook is registered in ~/.claude/settings.json
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json')
+  try {
+    const cs = JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
+    const registered = (cs.hooks?.UserPromptSubmit || []).some(h =>
+      Array.isArray(h.hooks) && h.hooks.some(e => e.command?.includes('df_bridge.py'))
+    )
+    if (!registered) return { ok: false, reason: 'Hook not registered in ~/.claude/settings.json' }
+  } catch (_) {
+    return { ok: false, reason: 'Could not read ~/.claude/settings.json' }
+  }
+
+  return { ok: true }
 })
 ipcMain.handle('count-tokens', async (_e, text) => {
   const t = getTokenizer()

@@ -985,10 +985,14 @@ html.light .token-danger { color: #b04030 !important; }
       <div class="settings-section">
         <div class="settings-section-title">Claude Code bridge</div>
         <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
-          <div style="flex:1;font-size:13px;color:var(--text-dim);line-height:1.4;">
-            Install the <code style="font-family:var(--mono);color:var(--accent);background:rgba(200,169,109,.1);padding:1px 5px;border-radius:3px;">/df</code> command and hook so Claude Code can open files in Draftflow.
+          <div style="flex:1;font-size:13px;color:var(--text-dim);line-height:1.5;">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;">
+              <span id="df-status-dot" style="width:7px;height:7px;border-radius:50%;background:var(--text-faint);flex-shrink:0;transition:background .2s;"></span>
+              <span id="df-status-text" style="font-size:12px;color:var(--text-faint);">checking…</span>
+            </div>
+            Installs the <code style="font-family:var(--mono);color:var(--accent);background:rgba(200,169,109,.1);padding:1px 5px;border-radius:3px;">/df</code> command and hooks so Claude Code can open files in Draftflow.
           </div>
-          <button class="btn primary" id="btn-install-df" style="flex-shrink:0;">Reinstall /df command</button>
+          <button class="btn primary" id="btn-install-df" style="flex-shrink:0;">Install /df command</button>
         </div>
       </div>
 
@@ -2288,6 +2292,31 @@ document.getElementById('scratch-save-btn').addEventListener('click', saveScratc
 // ─────────────────────────────────────────────
 // Settings modal
 // ─────────────────────────────────────────────
+async function refreshDfStatus () {
+  const dot  = document.getElementById('df-status-dot')
+  const text = document.getElementById('df-status-text')
+  const btn  = document.getElementById('btn-install-df')
+  if (!dot || !text) return
+  text.textContent = 'checking…'
+  dot.style.background = 'var(--text-faint)'
+  try {
+    const result = await window.api.dfCommandInstalled()
+    if (result && result.ok) {
+      dot.style.background  = 'var(--accent2)'
+      text.style.color      = 'var(--accent2)'
+      text.textContent      = 'Active — /df command and hooks installed'
+      btn.textContent       = 'Reinstall /df command'
+    } else {
+      dot.style.background  = 'var(--red, #e05c5c)'
+      text.style.color      = 'var(--red, #e05c5c)'
+      text.textContent      = result?.reason || 'Not installed'
+      btn.textContent       = 'Install /df command'
+    }
+  } catch (_) {
+    text.textContent = 'Status unknown'
+  }
+}
+
 function openSettings () {
   pendingSettings = JSON.parse(JSON.stringify(settings))
   renderSettingsPanel()
@@ -2297,6 +2326,7 @@ function openSettings () {
   document.getElementById('settings-api-key').type    = 'password'
   document.getElementById('settings-api-key-toggle').textContent = 'show'
   document.getElementById('settings-overlay').classList.add('visible')
+  refreshDfStatus()
 }
 
 function closeSettings () {
@@ -2422,9 +2452,11 @@ document.getElementById('btn-install-df').addEventListener('click', async () => 
   if (!window.api) return
   const result = await window.api.installDfCommand()
   if (result.ok) {
-    showToast('/df command reinstalled · ready in Claude Code', 'skill')
+    showToast('/df command installed · ready in Claude Code', 'skill')
+    refreshDfStatus()
   } else {
     showToast('Install failed: ' + result.error, 'agent')
+    refreshDfStatus()
   }
 })
 
