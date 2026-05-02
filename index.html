@@ -498,6 +498,18 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .status-item { font-size: 12px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; letter-spacing: .04em; white-space: nowrap; }
 .status-item.live { color: var(--text-dim); }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); }
+.update-badge {
+  margin-left: auto; display: none; align-items: center; gap: 5px;
+  background: var(--agent-bg); border: 1px solid rgba(127,191,168,.25);
+  border-radius: 4px; padding: 2px 8px 2px 7px;
+  font-size: 11px; color: var(--accent2); cursor: pointer;
+  letter-spacing: .04em; white-space: nowrap; transition: background .15s;
+}
+.update-badge.visible { display: flex; }
+.update-badge:hover { background: rgba(127,191,168,.15); }
+.update-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+.update-dismiss { margin-left: 4px; opacity: .45; font-size: 10px; line-height: 1; }
+.update-dismiss:hover { opacity: 1; }
 
 .claude-btn {
   position: absolute; right: 14px;
@@ -928,6 +940,11 @@ html.light .token-danger { color: #b04030 !important; }
       <span class="status-item" id="token-count" style="display:none">~0 tokens</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
+      <div class="update-badge" id="update-badge">
+        <span class="update-badge-dot"></span>
+        <span id="update-badge-label">update available</span>
+        <span class="update-dismiss" id="update-dismiss">✕</span>
+      </div>
       <div class="review-badge" id="review-badge">
         <span class="review-badge-dot"></span>reviewing plan
       </div>
@@ -1263,6 +1280,20 @@ async function init () {
     updateStatusbar()
     return
   }
+
+  // Update availability banner
+  window.api.onUpdateAvailable(({ version, url }) => {
+    const badge = document.getElementById('update-badge')
+    document.getElementById('update-badge-label').textContent = `${version} available`
+    badge.classList.add('visible')
+    badge.addEventListener('click', (e) => {
+      if (e.target.id === 'update-dismiss') {
+        badge.classList.remove('visible')
+      } else {
+        window.api.openUrl(url)
+      }
+    })
+  })
 
   // Register bridge handler immediately — before any awaits — so the event
   // isn't missed when Draftflow opens fresh in response to a /df call.

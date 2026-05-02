@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard, shell } = require('electron')
 const path = require('path')
 const fs   = require('fs')
 const os   = require('os')
@@ -237,6 +237,8 @@ function createWindow () {
       dbg('sending bridge-open from pending:', JSON.stringify(bridgeData))
       if (bridgeData) mainWindow.webContents.send('bridge-open', bridgeData)
     }
+    // Check for updates after a short delay so it never blocks startup
+    setTimeout(() => checkForUpdate(mainWindow), 5000)
   })
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
@@ -283,6 +285,39 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+// ── Update checker ────────────────────────────────────────────────────────────
+
+const GITHUB_REPO = 'sameera207/draftflow'
+
+function isNewerVersion (latest, current) {
+  const parse = v => v.replace(/^v/, '').split('.').map(Number)
+  const [la, lb, lc] = parse(latest)
+  const [ca, cb, cc] = parse(current)
+  return la > ca || (la === ca && (lb > cb || (lb === cb && lc > cc)))
+}
+
+function isHomebrew () {
+  try { return app.getPath('exe').includes('Caskroom') } catch (_) { return false }
+}
+
+async function checkForUpdate (win) {
+  // Skip silently for Homebrew installs — brew upgrade handles those
+  if (isHomebrew()) return
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+      headers: { 'User-Agent': 'Draftflow' },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const latest = data.tag_name          // e.g. "v0.2.0"
+    const current = app.getVersion()      // e.g. "0.1.0"
+    if (!latest || !isNewerVersion(latest, current)) return
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('update-available', { version: latest, url: data.html_url })
+    }
+  } catch (_) {}  // network errors are silent — never bother the user
+}
 
 // ── IPC handlers ──────────────────────────────────────────────────────────────
 
@@ -531,3 +566,4 @@ ipcMain.handle('maximize',       async ()             => {
   mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
 })
 ipcMain.handle('close',          async ()             => mainWindow.close())
+ipcMain.handle('open-url',       async (_e, url)      => { await shell.openExternal(url); return true })
