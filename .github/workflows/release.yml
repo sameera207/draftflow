@@ -79,3 +79,30 @@ jobs:
           name: v${{ steps.ver.outputs.version }}
           generate_release_notes: true
           files: dist/Draftflow-${{ steps.ver.outputs.version }}.dmg
+
+      # Update the Homebrew tap cask with the new version + SHA256.
+      # Requires a PAT with repo write access to sameera207/homebrew-draftflow
+      # stored as the HOMEBREW_TAP_TOKEN repository secret.
+      - name: Update Homebrew cask
+        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION:   ${{ steps.ver.outputs.version }}
+        run: |
+          DMG="dist/Draftflow-${VERSION}.dmg"
+          SHA=$(shasum -a 256 "$DMG" | awk '{print $1}')
+          URL="https://github.com/sameera207/draftflow/releases/download/v${VERSION}/Draftflow-${VERSION}.dmg"
+
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/sameera207/homebrew-draftflow.git" tap-repo
+          cd tap-repo
+
+          # Update version and sha256 in-place
+          sed -i '' "s|version \".*\"|version \"${VERSION}\"|" Casks/draftflow.rb
+          sed -i '' "s|sha256 \".*\"|sha256 \"${SHA}\"|" Casks/draftflow.rb
+          sed -i '' "s|url \".*\"|url \"${URL}\"|" Casks/draftflow.rb
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/draftflow.rb
+          git diff --staged --quiet || git commit -m "chore: update draftflow to v${VERSION}"
+          git push

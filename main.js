@@ -638,6 +638,7 @@ ipcMain.handle('maximize',       async ()             => {
 })
 ipcMain.handle('close',          async ()             => mainWindow.close())
 ipcMain.handle('open-url',       async (_e, url)      => { await shell.openExternal(url); return true })
+ipcMain.handle('get-version',    async ()             => app.getVersion())
 ipcMain.handle('start-download', async (_e, { downloadUrl, version }) => {
   runDownload(downloadUrl, version)   // fire-and-forget; progress via events
   return { ok: true }

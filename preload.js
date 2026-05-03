@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('api', {
   onDownloadDone:     (cb) => ipcRenderer.on('download-done',     ()         => cb()),
   onDownloadError:    (cb) => ipcRenderer.on('download-error',    (_e, msg)  => cb(msg)),
   openUrl:            (url)          => ipcRenderer.invoke('open-url', url),
+  getVersion:         ()             => ipcRenderer.invoke('get-version'),
   startDownload:      (downloadUrl, version) => ipcRenderer.invoke('start-download', { downloadUrl, version }),
   sendBack:       (content) => ipcRenderer.invoke('send-back', content),
   installDfCommand:   () => ipcRenderer.invoke('install-df-command'),

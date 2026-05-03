@@ -498,8 +498,19 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .status-item { font-size: 12px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; letter-spacing: .04em; white-space: nowrap; }
 .status-item.live { color: var(--text-dim); }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); }
+.statusbar-badges { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.bridge-warning {
+  display: none; align-items: center; gap: 5px;
+  background: rgba(224,92,92,.08); border: 1px solid rgba(224,92,92,.25);
+  border-radius: 4px; padding: 2px 8px 2px 7px;
+  font-size: 11px; color: var(--red, #e05c5c); cursor: pointer;
+  letter-spacing: .04em; white-space: nowrap; transition: background .15s;
+}
+.bridge-warning.visible { display: flex; }
+.bridge-warning:hover { background: rgba(224,92,92,.15); }
+.bridge-warning-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red, #e05c5c); flex-shrink: 0; }
 .update-badge {
-  margin-left: auto; display: none; align-items: center; gap: 5px;
+  display: none; align-items: center; gap: 5px;
   background: var(--agent-bg); border: 1px solid rgba(127,191,168,.25);
   border-radius: 4px; padding: 2px 8px 2px 7px;
   font-size: 11px; color: var(--accent2); cursor: pointer;
@@ -940,10 +951,16 @@ html.light .token-danger { color: #b04030 !important; }
       <span class="status-item" id="token-count" style="display:none">~0 tokens</span>
       <span class="status-item" id="cursor-pos">Ln 1, Col 1</span>
       <span class="status-item" id="skill-count-status">— skills · — agents indexed</span>
-      <div class="update-badge" id="update-badge">
-        <span class="update-badge-dot"></span>
-        <span id="update-badge-label">update available</span>
-        <span class="update-dismiss" id="update-dismiss">✕</span>
+      <div class="statusbar-badges">
+        <div class="bridge-warning" id="bridge-warning">
+          <span class="bridge-warning-dot"></span>
+          /df not set up — click to fix
+        </div>
+        <div class="update-badge" id="update-badge">
+          <span class="update-badge-dot"></span>
+          <span id="update-badge-label">update available</span>
+          <span class="update-dismiss" id="update-dismiss">✕</span>
+        </div>
       </div>
       <div class="review-badge" id="review-badge">
         <span class="review-badge-dot"></span>reviewing plan
@@ -1058,6 +1075,7 @@ html.light .token-danger { color: #b04030 !important; }
       </div>
     </div>
     <div class="settings-footer">
+      <span id="settings-version" style="font-size:11px;color:var(--text-faint);margin-right:auto;"></span>
       <button class="btn" id="settings-cancel">cancel</button>
       <button class="btn primary" id="settings-save">save &amp; rescan</button>
     </div>
@@ -1408,6 +1426,9 @@ async function init () {
   if (settings.lastOpenFile && !bridgeOpened) {
     await openFilePath(settings.lastOpenFile)
   }
+
+  // Check bridge status once, after a short delay so the UI is settled
+  setTimeout(refreshBridgeWarning, 1500)
 }
 
 // ─────────────────────────────────────────────
@@ -2292,6 +2313,19 @@ document.getElementById('scratch-save-btn').addEventListener('click', saveScratc
 // ─────────────────────────────────────────────
 // Settings modal
 // ─────────────────────────────────────────────
+async function refreshBridgeWarning () {
+  const badge = document.getElementById('bridge-warning')
+  if (!badge || !window.api) return
+  try {
+    const result = await window.api.dfCommandInstalled()
+    if (result && result.ok) {
+      badge.classList.remove('visible')
+    } else {
+      badge.classList.add('visible')
+    }
+  } catch (_) { /* fail silently */ }
+}
+
 async function refreshDfStatus () {
   const dot  = document.getElementById('df-status-dot')
   const text = document.getElementById('df-status-text')
@@ -2327,11 +2361,16 @@ function openSettings () {
   document.getElementById('settings-api-key-toggle').textContent = 'show'
   document.getElementById('settings-overlay').classList.add('visible')
   refreshDfStatus()
+  window.api.getVersion().then(v => {
+    const el = document.getElementById('settings-version')
+    if (el) el.textContent = `Draftflow v${v}`
+  }).catch(() => {})
 }
 
 function closeSettings () {
   document.getElementById('settings-overlay').classList.remove('visible')
   pendingSettings = null
+  refreshBridgeWarning()
 }
 
 function renderSettingsPanel () {
@@ -2378,6 +2417,7 @@ function updateSettingsSummary () {
 }
 
 document.getElementById('btn-settings').addEventListener('click', openSettings)
+document.getElementById('bridge-warning').addEventListener('click', openSettings)
 document.getElementById('settings-close').addEventListener('click', closeSettings)
 document.getElementById('settings-cancel').addEventListener('click', closeSettings)
 document.getElementById('settings-api-key-toggle').addEventListener('click', () => {
