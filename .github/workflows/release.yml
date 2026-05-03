@@ -81,16 +81,17 @@ jobs:
           files: dist/Draftflow-${{ steps.ver.outputs.version }}.dmg
 
       # Update the Homebrew tap cask with the new version + SHA256.
-      # Uses the GitHub Contents API (no git push) so a fine-grained PAT with
-      # Contents:write on sameera207/homebrew-draftflow is sufficient.
-      # Store the PAT as the HOMEBREW_TAP_TOKEN repository secret.
+      # Requires a classic PAT with repo scope on sameera207/homebrew-draftflow
+      # stored (without trailing newline) as the HOMEBREW_TAP_TOKEN secret:
+      #   printf 'ghp_TOKEN' | gh secret set HOMEBREW_TAP_TOKEN --repo sameera207/draftflow --body -
       - name: Update Homebrew cask
+        continue-on-error: true
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION:   ${{ steps.ver.outputs.version }}
         run: |
-          if [ -z "$TAP_TOKEN" ]; then
-            echo "HOMEBREW_TAP_TOKEN not set — skipping cask update"
+          if [ -z "$TAP_TOKEN" ] || [ "${#TAP_TOKEN}" -lt 10 ]; then
+            echo "HOMEBREW_TAP_TOKEN not set or invalid — skipping cask update"
             exit 0
           fi
 
@@ -100,24 +101,16 @@ jobs:
           API="https://api.github.com/repos/sameera207/homebrew-draftflow/contents/Casks/draftflow.rb"
           AUTH="Authorization: Bearer ${TAP_TOKEN}"
 
-          # Get current file blob SHA
-          echo "Token length: ${#TAP_TOKEN} chars"
-          echo "Token prefix: ${TAP_TOKEN:0:4}"
-          API_RESP=$(curl -s -H "$AUTH" -H "Accept: application/vnd.github+json" "$API")
-          echo "API GET response: $API_RESP" | head -c 300
-          FILE_SHA=$(echo "$API_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
-          echo "File SHA: $FILE_SHA"
+          FILE_SHA=$(curl -s -H "$AUTH" -H "Accept: application/vnd.github+json" "$API" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
 
-          # Build and encode cask content
           CONTENT=$(printf 'cask "draftflow" do\n  version "%s"\n  sha256 "%s"\n\n  url "%s"\n  name "Draftflow"\n  desc "Markdown editor for Claude Code workflows"\n  homepage "https://draftflow.dev"\n\n  app "Draftflow.app"\n\n  zap trash: [\n    "~/.claude/editor-bridge",\n    "~/Library/Application Support/Draftflow",\n  ]\nend\n' "$VERSION" "$SHA" "$URL")
           ENCODED=$(echo "$CONTENT" | base64 | tr -d '\n')
 
-          # Push via REST API
           RESULT=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$API" \
             -H "$AUTH" \
             -H "Accept: application/vnd.github+json" \
             -H "Content-Type: application/json" \
             -d "{\"message\":\"chore: update draftflow to v${VERSION}\",\"content\":\"${ENCODED}\",\"sha\":\"${FILE_SHA}\"}")
 
-          echo "API response: $RESULT"
-          [ "$RESULT" = "200" ] || [ "$RESULT" = "201" ] || { echo "Cask update failed (HTTP $RESULT)"; exit 1; }
+          echo "Cask update HTTP $RESULT"
+          [ "$RESULT" = "200" ] || [ "$RESULT" = "201" ] || { echo "Cask update failed — check HOMEBREW_TAP_TOKEN"; exit 1; }
