@@ -101,7 +101,9 @@ jobs:
           AUTH="Authorization: Bearer ${TAP_TOKEN}"
 
           # Get current file blob SHA
-          FILE_SHA=$(curl -s -H "$AUTH" -H "Accept: application/vnd.github+json" "$API" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
+          API_RESP=$(curl -s -H "$AUTH" -H "Accept: application/vnd.github+json" "$API")
+          echo "API GET response: $API_RESP" | head -c 300
+          FILE_SHA=$(echo "$API_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
           echo "File SHA: $FILE_SHA"
 
           # Build and encode cask content
