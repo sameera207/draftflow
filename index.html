@@ -146,6 +146,9 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 }
 .tree-item:hover { background: var(--surface2); color: var(--text); }
 .tree-item.active { background: var(--accent-bg); color: var(--accent); border-left-color: var(--accent); }
+.tree-item.previewing { background: var(--surface2); border-left-color: var(--accent2); color: var(--text); }
+.tree-item.previewing.agent-preview { border-left-color: var(--accent2); }
+.tree-item.previewing.skill-preview { border-left-color: var(--accent); }
 .tree-item svg { width: 11px; height: 11px; flex-shrink: 0; opacity: .5; }
 .tree-item.active svg { opacity: 1; }
 .tree-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
@@ -455,6 +458,22 @@ textarea#editor::placeholder { color: var(--text-faint); }
   flex: 1; overflow-y: auto; padding: 20px 36px 80px;
   border-left: 1px solid var(--border); display: none;
 }
+.skill-preview-header {
+  display: flex; align-items: center; gap: 8px;
+  margin: -20px -36px 20px; padding: 9px 16px;
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--text-faint); letter-spacing: .04em;
+}
+.skill-preview-header-tag {
+  font-family: var(--mono); font-size: 11px; padding: 1px 6px;
+  border-radius: 3px; font-weight: 500;
+}
+.skill-preview-header-tag.skill { background: rgba(200,169,109,.12); color: var(--accent); }
+.skill-preview-header-tag.agent { background: rgba(127,191,168,.12); color: var(--accent2); }
+.skill-preview-header-dismiss {
+  margin-left: auto; cursor: pointer; opacity: .4; font-size: 12px; line-height: 1;
+}
+.skill-preview-header-dismiss:hover { opacity: 1; }
 .preview-pane.visible { display: block; }
 .preview-pane::-webkit-scrollbar { width: 3px; }
 .preview-pane::-webkit-scrollbar-thumb { background: var(--border2); }
@@ -1611,6 +1630,70 @@ function renderRecent () {
   })
 }
 
+// ─────────────────────────────────────────────
+// Skill / agent preview in the preview pane
+// ─────────────────────────────────────────────
+let previewingSkillPath = null
+
+async function toggleSkillPreview (item, type) {
+  const pane = document.getElementById('preview-pane')
+
+  // Second click on the same item → revert
+  if (previewingSkillPath === item.path) {
+    revertSkillPreview()
+    return
+  }
+
+  previewingSkillPath = item.path
+
+  // Clear any previous previewing highlight
+  document.querySelectorAll('.tree-item.previewing').forEach(el => el.classList.remove('previewing', 'skill-preview', 'agent-preview'))
+
+  // Highlight the clicked item
+  const selector = `.tree-item[data-path="${CSS.escape(item.path)}"]`
+  document.querySelectorAll(selector).forEach(el => {
+    el.classList.add('previewing', type === 'skill' ? 'skill-preview' : 'agent-preview')
+  })
+
+  // Make the preview pane visible (switch to split if in edit-only mode)
+  if (currentMode === 'edit') {
+    currentMode = 'split'
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'split'))
+    editorEl.style.display = ''
+    pane.classList.add('visible')
+  }
+
+  // Load and render the skill content
+  let md = ''
+  try {
+    if (window.api && window.api.readSkillContent) {
+      md = await window.api.readSkillContent(item.path) || ''
+    }
+  } catch (_) {}
+
+  const tag    = type === 'skill' ? '#' : '@'
+  const cls    = type === 'skill' ? 'skill' : 'agent'
+  const header = `<div class="skill-preview-header">
+    <span class="skill-preview-header-tag ${cls}">${tag}${escHtml(item.name)}</span>
+    <span style="color:var(--text-faint)">${escHtml(item.desc || '')}</span>
+    <span class="skill-preview-header-dismiss" id="skill-preview-dismiss">✕</span>
+  </div>`
+
+  const body = typeof marked !== 'undefined' ? marked.parse(md) : `<pre>${escHtml(md)}</pre>`
+  pane.innerHTML = header + body
+
+  document.getElementById('skill-preview-dismiss').addEventListener('click', revertSkillPreview)
+
+  clearTimeout(mermaidDebounceTimer)
+  mermaidDebounceTimer = setTimeout(renderMermaidBlocks, 350)
+}
+
+function revertSkillPreview () {
+  previewingSkillPath = null
+  document.querySelectorAll('.tree-item.previewing').forEach(el => el.classList.remove('previewing', 'skill-preview', 'agent-preview'))
+  updatePreview()
+}
+
 function renderSkillsList () {
   const el = document.getElementById('skills-list')
   const list = skillsData.skills || []
@@ -1625,7 +1708,9 @@ function renderSkillsList () {
       <span class="tree-tag skill">#</span>
     </div>`).join('')
   el.querySelectorAll('.tree-item[data-path]').forEach(item => {
-    if (item.dataset.path) item.addEventListener('click', () => openFilePath(item.dataset.path))
+    if (item.dataset.path) item.addEventListener('click', () => toggleSkillPreview(
+      skillsData.skills.find(s => s.path === item.dataset.path), 'skill'
+    ))
   })
 }
 
@@ -1643,7 +1728,9 @@ function renderAgentsList () {
       <span class="tree-tag agent">@</span>
     </div>`).join('')
   el.querySelectorAll('.tree-item[data-path]').forEach(item => {
-    if (item.dataset.path) item.addEventListener('click', () => openFilePath(item.dataset.path))
+    if (item.dataset.path) item.addEventListener('click', () => toggleSkillPreview(
+      skillsData.agents.find(a => a.path === item.dataset.path), 'agent'
+    ))
   })
 }
 
@@ -1856,6 +1943,8 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     if (currentMode === 'edit') {
       editor.style.display = ''
       preview.classList.remove('visible')
+      previewingSkillPath = null
+      document.querySelectorAll('.tree-item.previewing').forEach(el => el.classList.remove('previewing', 'skill-preview', 'agent-preview'))
     } else if (currentMode === 'split') {
       editor.style.display = ''
       preview.classList.add('visible')
@@ -1947,6 +2036,7 @@ async function renderMermaidBlocks () {
 function updatePreview () {
   const pane = document.getElementById('preview-pane')
   if (!pane.classList.contains('visible')) return
+  if (previewingSkillPath) return   // skill preview is active — don't overwrite
 
   // In review mode the preview always shows the plan, not the editor content
   const source = reviewMode ? reviewContent : editorEl.value
