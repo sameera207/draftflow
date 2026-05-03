@@ -303,8 +303,6 @@ function isHomebrew () {
 }
 
 async function checkForUpdate (win) {
-  // Skip silently for Homebrew installs — brew upgrade handles those
-  if (isHomebrew()) return
   try {
     const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'Draftflow' },
@@ -314,13 +312,15 @@ async function checkForUpdate (win) {
     const latest = data.tag_name          // e.g. "v0.2.0"
     const current = app.getVersion()      // e.g. "0.1.0"
     if (!latest || !isNewerVersion(latest, current)) return
-    const asset = (data.assets || []).find(a => a.name.endsWith('.dmg'))
+    const homebrew = isHomebrew()
+    const asset = homebrew ? null : (data.assets || []).find(a => a.name.endsWith('.dmg'))
     if (win && !win.isDestroyed()) {
       win.webContents.send('update-available', {
         version:     latest,
         url:         data.html_url,
         downloadUrl: asset ? asset.browser_download_url : null,
         size:        asset ? asset.size : 0,
+        homebrew,
       })
     }
   } catch (_) {}  // network errors are silent — never bother the user

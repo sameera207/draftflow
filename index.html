@@ -1304,7 +1304,7 @@ async function init () {
   }
 
   // Update availability banner — states: idle → downloading → done | error
-  window.api.onUpdateAvailable(({ version, url, downloadUrl }) => {
+  window.api.onUpdateAvailable(({ version, url, downloadUrl, homebrew }) => {
     const badge   = document.getElementById('update-badge')
     const label   = document.getElementById('update-badge-label')
     const dismiss = document.getElementById('update-dismiss')
@@ -1312,6 +1312,18 @@ async function init () {
 
     label.textContent = `${version} available`
     badge.classList.add('visible')
+
+    if (homebrew) {
+      // Homebrew installs: clicking copies the upgrade command to clipboard
+      const brewCmd = 'brew upgrade --cask draftflow'
+      badge.addEventListener('click', async (e) => {
+        if (e.target.id === 'update-dismiss') { badge.classList.remove('visible'); return }
+        await window.api.copyToClipboard(brewCmd)
+        label.textContent = 'copied: brew upgrade --cask draftflow'
+        dismiss.style.display = ''
+      })
+      return
+    }
 
     badge.addEventListener('click', async (e) => {
       if (e.target.id === 'update-dismiss') {
