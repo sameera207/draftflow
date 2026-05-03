@@ -311,8 +311,13 @@ async function checkForUpdate (win) {
     const data = await res.json()
     const latest = data.tag_name          // e.g. "v0.2.0"
     const current = app.getVersion()      // e.g. "0.1.0"
-    if (!latest || !isNewerVersion(latest, current)) return
     const homebrew = isHomebrew()
+    if (!latest || !isNewerVersion(latest, current)) {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('version-current', { version: current })
+      }
+      return
+    }
     const asset = homebrew ? null : (data.assets || []).find(a => a.name.endsWith('.dmg'))
     if (win && !win.isDestroyed()) {
       win.webContents.send('update-available', {

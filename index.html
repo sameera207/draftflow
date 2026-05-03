@@ -528,24 +528,29 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .bridge-warning.visible { display: flex; }
 .bridge-warning:hover { background: rgba(224,92,92,.15); }
 .bridge-warning-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red, #e05c5c); flex-shrink: 0; }
+/* amber when update available, green when up-to-date */
 .update-badge {
   display: none; align-items: center; gap: 5px;
-  background: var(--agent-bg); border: 1px solid rgba(127,191,168,.25);
+  background: rgba(200,169,109,.08); border: 1px solid rgba(200,169,109,.3);
   border-radius: 4px; padding: 2px 8px 2px 7px;
-  font-size: 11px; color: var(--accent2); cursor: pointer;
+  font-size: 11px; color: var(--accent); cursor: pointer;
   letter-spacing: .04em; white-space: nowrap; transition: background .15s;
 }
 .update-badge.visible { display: flex; }
-.update-badge:hover { background: rgba(127,191,168,.15); }
-.update-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+.update-badge:hover { background: rgba(200,169,109,.15); }
+.update-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.update-badge.up-to-date {
+  background: rgba(127,191,168,.08); border-color: rgba(127,191,168,.25);
+  color: var(--accent2); cursor: default;
+}
+.update-badge.up-to-date:hover { background: rgba(127,191,168,.08); }
+.update-badge.up-to-date .update-badge-dot { background: var(--accent2); }
 .update-dismiss { margin-left: 4px; opacity: .45; font-size: 10px; line-height: 1; }
 .update-dismiss:hover { opacity: 1; }
 
 .claude-btn {
-  position: absolute; right: 14px;
-  top: 50%; transform: translateY(-50%);
   background: var(--accent); color: var(--bg);
-  border: none; cursor: pointer;
+  border: none; cursor: pointer; flex-shrink: 0;
   font-family: var(--mono); font-size: 13px; font-weight: 500;
   letter-spacing: .06em; padding: 5px 14px;
   border-radius: 4px; display: flex; align-items: center; gap: 7px;
@@ -556,9 +561,7 @@ textarea#editor::placeholder { color: var(--text-faint); }
 .claude-btn svg { width: 12px; height: 12px; }
 
 .sendback-btn {
-  position: absolute; right: 14px;
-  top: 50%; transform: translateY(-50%);
-  background: var(--agent-bg); color: var(--accent2);
+  background: var(--agent-bg); color: var(--accent2); flex-shrink: 0;
   border: 1px solid rgba(127,191,168,.2); cursor: pointer;
   font-family: var(--mono); font-size: 12px;
   letter-spacing: .04em; padding: 3px 10px;
@@ -1321,6 +1324,17 @@ async function init () {
     updateStatusbar()
     return
   }
+
+  // Show green "up to date" badge briefly when already on latest
+  window.api.onVersionCurrent(({ version }) => {
+    const badge = document.getElementById('update-badge')
+    const label = document.getElementById('update-badge-label')
+    const dismiss = document.getElementById('update-dismiss')
+    badge.classList.add('visible', 'up-to-date')
+    dismiss.style.display = 'none'
+    label.textContent = `v${version} — up to date`
+    setTimeout(() => badge.classList.remove('visible', 'up-to-date'), 4000)
+  })
 
   // Update availability banner — states: idle → downloading → done | error
   window.api.onUpdateAvailable(({ version, url, downloadUrl, homebrew }) => {

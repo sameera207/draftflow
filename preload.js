@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('api', {
   onMenuAction:      (cb) => ipcRenderer.on('menu-action',      (_e, action) => cb(action)),
   onBridgeOpen:      (cb) => ipcRenderer.on('bridge-open',      (_e, data)   => cb(data)),
   onUpdateAvailable:  (cb) => ipcRenderer.on('update-available',  (_e, data) => cb(data)),
+  onVersionCurrent:   (cb) => ipcRenderer.on('version-current',   (_e, data) => cb(data)),
   onDownloadProgress: (cb) => ipcRenderer.on('download-progress', (_e, pct)  => cb(pct)),
   onDownloadDone:     (cb) => ipcRenderer.on('download-done',     ()         => cb()),
   onDownloadError:    (cb) => ipcRenderer.on('download-error',    (_e, msg)  => cb(msg)),
