@@ -101,6 +101,8 @@ jobs:
           AUTH="Authorization: Bearer ${TAP_TOKEN}"
 
           # Get current file blob SHA
+          echo "Token length: ${#TAP_TOKEN} chars"
+          echo "Token prefix: ${TAP_TOKEN:0:4}"
           API_RESP=$(curl -s -H "$AUTH" -H "Accept: application/vnd.github+json" "$API")
           echo "API GET response: $API_RESP" | head -c 300
           FILE_SHA=$(echo "$API_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
