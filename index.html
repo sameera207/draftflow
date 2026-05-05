@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
-<script src="./node_modules/marked/lib/marked.umd.js"></script>
 <script src="./node_modules/mermaid/dist/mermaid.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -455,8 +454,9 @@ textarea#editor::placeholder { color: var(--text-faint); }
 
 /* ── PREVIEW ── */
 .preview-pane {
-  flex: 1; overflow-y: auto; padding: 20px 36px 80px;
+  flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 20px 36px 80px;
   border-left: 1px solid var(--border); display: none;
+  word-wrap: break-word; overflow-wrap: break-word;
 }
 .skill-preview-header {
   display: flex; align-items: center; gap: 8px;
@@ -1693,7 +1693,7 @@ async function toggleSkillPreview (item, type) {
     <span class="skill-preview-header-dismiss" id="skill-preview-dismiss">✕</span>
   </div>`
 
-  const body = typeof marked !== 'undefined' ? marked.parse(md) : `<pre>${escHtml(md)}</pre>`
+  const body = (window.api && typeof window.api.markedParse === 'function') ? window.api.markedParse(md) : `<pre>${escHtml(md)}</pre>`
   pane.innerHTML = header + body
 
   document.getElementById('skill-preview-dismiss').addEventListener('click', revertSkillPreview)
@@ -2055,8 +2055,8 @@ function updatePreview () {
   // In review mode the preview always shows the plan, not the editor content
   const source = reviewMode ? reviewContent : editorEl.value
   let html
-  if (typeof marked !== 'undefined') {
-    html = marked.parse(source || '')
+  if (window.api && typeof window.api.markedParse === 'function') {
+    html = window.api.markedParse(source || '')
   } else {
     html = `<pre>${escHtml(source)}</pre>`
   }
