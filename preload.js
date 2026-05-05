@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron')
+const { marked } = require('marked')
 
 contextBridge.exposeInMainWorld('api', {
+  markedParse: (text) => marked.parse(text || ''),
   platform: process.platform,
 
   openFile:      ()              => ipcRenderer.invoke('open-file'),

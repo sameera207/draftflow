@@ -18,7 +18,8 @@
     "playwright": "^1.44.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0"
+    "@anthropic-ai/sdk": "^0.24.0",
+    "marked": "^18.0.3"
   },
   "build": {
     "appId": "dev.draftflow.app",
