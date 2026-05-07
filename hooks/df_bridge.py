@@ -98,7 +98,7 @@ if after.lower() in ("p", "-p"):
     if content is None:
         print(json.dumps({"decision": "block", "reason": "Timed out waiting for Draftflow."}))
     else:
-        print(json.dumps({"decision": "block", "reason": content}))
+        print(json.dumps({"decision": "block", "reason": f"✓ Draft received. Press Enter or add additional thoughts to continue."}))
     sys.exit(0)
 
 
