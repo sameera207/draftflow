@@ -276,8 +276,19 @@ function createWindow () {
 }
 
 app.whenReady().then(() => {
-  try { installIntegration() } catch (e) { dbg('installIntegration failed:', e.message) }
+  let updatedIntegrationFiles = []
+  try { updatedIntegrationFiles = installIntegration() || [] } catch (e) { dbg('installIntegration failed:', e.message) }
   createWindow()
+  if (updatedIntegrationFiles.length && mainWindow) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('integration-updated', {
+          files:   updatedIntegrationFiles,
+          version: app.getVersion(),
+        })
+      }
+    })
+  }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -500,18 +511,25 @@ ipcMain.handle('send-back', async (_e, content) => {
 
 // Writes a file from the app bundle to dest, works inside an asar archive.
 // fs.copyFileSync cannot read from inside asar — read+write always works.
+// Returns true if the destination content actually changed.
 function installFile (src, dest) {
   const content = fs.readFileSync(src, 'utf8')
+  let existing = null
+  try { existing = fs.readFileSync(dest, 'utf8') } catch (_) {}
+  if (existing === content) return false
   fs.writeFileSync(dest, content, { encoding: 'utf8', mode: 0o755 })
   dbg('installFile:', src, '→', dest)
+  return true
 }
 
 function installIntegration () {
+  const updated = []
+
   // 1. Install /df command
   const cmdSrc  = path.join(__dirname, 'commands', 'df.md')
   const cmdDest = path.join(os.homedir(), '.claude', 'commands', 'df.md')
   fs.mkdirSync(path.dirname(cmdDest), { recursive: true })
-  installFile(cmdSrc, cmdDest)
+  if (installFile(cmdSrc, cmdDest)) updated.push('df.md')
 
   // 2. Install hook scripts (always overwrite so updates stay in sync)
   const hooksDir = path.join(os.homedir(), '.claude', 'hooks')
@@ -521,7 +539,7 @@ function installIntegration () {
   for (const fname of hookFiles) {
     const src  = path.join(__dirname, 'hooks', fname)
     const dest = path.join(hooksDir, fname)
-    installFile(src, dest)
+    if (installFile(src, dest)) updated.push(fname)
   }
 
   const hookDest         = path.join(hooksDir, 'df_bridge.py')
@@ -566,6 +584,8 @@ function installIntegration () {
   }
 
   fs.writeFileSync(settingsPath, JSON.stringify(claudeSettings, null, 2))
+
+  return updated
 }
 
 ipcMain.handle('install-df-command', async () => {

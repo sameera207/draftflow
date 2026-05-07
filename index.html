@@ -1325,6 +1325,11 @@ async function init () {
     return
   }
 
+  // Toast when /df hook or command was just refreshed (e.g. after an app update)
+  window.api.onIntegrationUpdated(({ version }) => {
+    showToast(`/df hook updated for Draftflow v${version}`, 'skill')
+  })
+
   // Show green "up to date" badge briefly when already on latest
   window.api.onVersionCurrent(({ version }) => {
     const badge = document.getElementById('update-badge')

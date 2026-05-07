@@ -29,8 +29,9 @@ contextBridge.exposeInMainWorld('api', {
   writeScratch:  (content) => ipcRenderer.invoke('write-scratch', content),
   saveScratchAs: (args)  => ipcRenderer.invoke('save-scratch-as', args),
 
-  onMenuAction:      (cb) => ipcRenderer.on('menu-action',      (_e, action) => cb(action)),
-  onBridgeOpen:      (cb) => ipcRenderer.on('bridge-open',      (_e, data)   => cb(data)),
+  onMenuAction:        (cb) => ipcRenderer.on('menu-action',        (_e, action) => cb(action)),
+  onBridgeOpen:        (cb) => ipcRenderer.on('bridge-open',        (_e, data)   => cb(data)),
+  onIntegrationUpdated: (cb) => ipcRenderer.on('integration-updated', (_e, data)  => cb(data)),
   onUpdateAvailable:  (cb) => ipcRenderer.on('update-available',  (_e, data) => cb(data)),
   onVersionCurrent:   (cb) => ipcRenderer.on('version-current',   (_e, data) => cb(data)),
   onDownloadProgress: (cb) => ipcRenderer.on('download-progress', (_e, pct)  => cb(pct)),
