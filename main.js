@@ -217,6 +217,10 @@ function createWindow () {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration:  false,
+      // Electron 20+ sandboxes renderers by default, which blocks require()
+      // of non-builtin modules in the preload (we need `marked`). Keep the
+      // renderer un-sandboxed so the preload can load node_modules.
+      sandbox:          false,
     },
     show: false,
   }
