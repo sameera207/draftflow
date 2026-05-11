@@ -2662,10 +2662,23 @@ document.getElementById('btn-save').addEventListener('click', handleSave)
 // Send back (bridge response)
 // ─────────────────────────────────────────────
 document.getElementById('btn-sendback').addEventListener('click', async () => {
-  const text = editorEl.value
-  if (!text.trim() && !reviewMode && !planEditMode) { showToast('Nothing to send back', 'error'); return }
+  const notes = editorEl.value
+  let payload
+  if (reviewMode) {
+    payload = notes.trim()
+      ? `${reviewContent}\n\n---\n\n${notes}`
+      : reviewContent
+  } else {
+    payload = notes
+  }
+  console.log('[sendback]', {
+    mode: reviewMode ? 'review' : planEditMode ? 'plan-edit' : 'normal',
+    notesLength: notes.length,
+    payloadLength: payload.length
+  })
+  if (!payload.trim()) { showToast('Nothing to send back', 'error'); return }
   try {
-    const result = await window.api.sendBack(text)
+    const result = await window.api.sendBack(payload)
     if (!result.ok) throw new Error(result.error)
     reviewMode    = false
     planEditMode  = false

@@ -15,7 +15,8 @@
 - Plan-edit mode — when `/df p` targets a plan-mode response, the plan loads into the preview but the editor stays fully writable for annotations
 - "Send back" button — writes the editor content to the shared bridge file so Claude Code can read it; the hook picks it up automatically without the user needing to say "done"
 - "Send to Claude" button — copies editor content to clipboard, ready to paste into Claude Code
-- In-hook polling — the `df_bridge.py` hook polls for the response inside the hook process, so Claude Code resumes automatically once you click "Send back" (no extra step required)
+- In-hook polling — the `df_bridge.py` hook polls for the response inside the hook process; for `/df p` (review mode), the edited content is injected directly into Claude's context via `additionalContext` so Claude acts on it immediately without any extra step
+- Review mode send-back — includes both the original review content and any notes typed in the editor, so Claude sees the full picture
 
 ## Background Hooks (auto-installed)
 - `df_bridge.py` (`UserPromptSubmit`) — intercepts `/df` commands in Claude Code; opens Draftflow, polls for the response, and injects the edited content back into the Claude Code session

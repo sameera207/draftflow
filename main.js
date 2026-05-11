@@ -506,9 +506,12 @@ ipcMain.handle('send-back', async (_e, content) => {
   const responsePath = path.join(bridgeDir, 'response.md')
   try {
     fs.mkdirSync(bridgeDir, { recursive: true })
+    const length = (content || '').length
+    dbg('send-back: writing', length, 'bytes to', responsePath)
     fs.writeFileSync(responsePath, content, 'utf8')
     return { ok: true, path: responsePath }
   } catch (err) {
+    dbg('send-back: failed', err.message)
     return { ok: false, error: err.message }
   }
 })

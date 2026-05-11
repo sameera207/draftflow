@@ -98,7 +98,15 @@ if after.lower() in ("p", "-p"):
     if content is None:
         print(json.dumps({"decision": "block", "reason": "Timed out waiting for Draftflow."}))
     else:
-        print(json.dumps({"decision": "block", "reason": f"✓ Draft received. Press Enter or add additional thoughts to continue."}))
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": (
+                    f"SYSTEM (df hook): The user reviewed/edited the content in Draftflow and sent it back. "
+                    f"Here is the content — use it as the result of the /df p command:\n\n{content}"
+                )
+            }
+        }))
     sys.exit(0)
 
 
