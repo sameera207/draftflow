@@ -1784,6 +1784,34 @@ async function updateProjectTree (filePath, cwdOverride = null) {
   renderProjectTree()
 }
 
+function renderDirItems (dirs, root, relBase, depth) {
+  let html = ''
+  const folderPad = depth * 14 + 14
+  const filePad   = depth * 14 + 28
+  for (const dir of dirs) {
+    const relPath = relBase ? relBase + '/' + dir.name : dir.name
+    const expanded = !!folderExpanded[relPath]
+    html += `<div class="tree-folder ${expanded ? '' : 'collapsed'}" data-folder="${escAttr(relPath)}" style="padding-left:${folderPad}px">
+      <span class="fold-arrow">▾</span>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 4h10v6H1z"/><path d="M1 4V3h3l1 1"/></svg>
+      <span>${escHtml(dir.name)}/</span>
+    </div>`
+    if (expanded) {
+      for (const file of dir.files) {
+        const fp = root + '/' + relPath + '/' + file
+        const isMd = /\.md$/i.test(file)
+        const active = fp === currentFilePath
+        html += `<div class="tree-subfile ${active ? 'active' : ''} ${isMd ? '' : 'non-md'}" ${isMd ? `data-path="${escAttr(fp)}"` : ''} title="${escAttr(fp)}" style="padding-left:${filePad}px">
+          ${fileIcon(file)}
+          <span>${escHtml(file)}</span>
+        </div>`
+      }
+      html += renderDirItems(dir.dirs, root, relPath, depth + 1)
+    }
+  }
+  return html
+}
+
 function renderProjectTree () {
   const el = document.getElementById('project-list')
   if (!el) return
@@ -1807,25 +1835,7 @@ function renderProjectTree () {
     </div>`
   }
 
-  for (const dir of dirs) {
-    const expanded = !!folderExpanded[dir.name]
-    html += `<div class="tree-folder ${expanded ? '' : 'collapsed'}" data-folder="${escAttr(dir.name)}">
-      <span class="fold-arrow">▾</span>
-      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 4h10v6H1z"/><path d="M1 4V3h3l1 1"/></svg>
-      <span>${escHtml(dir.name)}/</span>
-    </div>`
-    if (expanded) {
-      for (const file of dir.files) {
-        const fp = root + '/' + dir.name + '/' + file
-        const isMd = /\.md$/i.test(file)
-        const active = fp === currentFilePath
-        html += `<div class="tree-subfile ${active ? 'active' : ''} ${isMd ? '' : 'non-md'}" ${isMd ? `data-path="${escAttr(fp)}"` : ''} title="${escAttr(fp)}">
-          ${fileIcon(file)}
-          <span>${escHtml(file)}</span>
-        </div>`
-      }
-    }
-  }
+  html += renderDirItems(dirs, root, '', 0)
 
   for (const file of files) {
     const fp = root + '/' + file

@@ -109,28 +109,29 @@ const IGNORED_DIRS = new Set(['node_modules', '.git', '.next', 'dist', 'build', 
 
 function scanProjectTree (root) {
   const hasClaude = fs.existsSync(path.join(root, 'CLAUDE.md'))
+  const { files, dirs } = scanDirRecursive(root, root)
+  return { root, files, dirs, hasClaude }
+}
+
+function scanDirRecursive (root, dir) {
   let entries
-  try { entries = fs.readdirSync(root, { withFileTypes: true }) } catch (_) { return { root, files: [], dirs: [], hasClaude } }
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch (_) { return { files: [], dirs: [] } }
   const files = []
   const dirs  = []
   for (const ent of entries) {
     if (ent.name.startsWith('.')) continue
     if (ent.isDirectory()) {
       if (IGNORED_DIRS.has(ent.name)) continue
-      let subEntries
-      try { subEntries = fs.readdirSync(path.join(root, ent.name), { withFileTypes: true }) } catch (_) { subEntries = [] }
-      const subFiles = subEntries
-        .filter(e => !e.isDirectory() && !e.name.startsWith('.'))
-        .map(e => e.name)
-        .sort()
-      dirs.push({ name: ent.name, files: subFiles })
-    } else if (ent.name !== 'CLAUDE.md') {
+      const sub = scanDirRecursive(root, path.join(dir, ent.name))
+      dirs.push({ name: ent.name, files: sub.files, dirs: sub.dirs })
+    } else {
+      if (dir === root && ent.name === 'CLAUDE.md') continue
       files.push(ent.name)
     }
   }
   files.sort()
   dirs.sort((a, b) => a.name.localeCompare(b.name))
-  return { root, files, dirs, hasClaude }
+  return { files, dirs }
 }
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
