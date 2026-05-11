@@ -103,7 +103,9 @@ jobs:
 
           FILE_SHA=$(curl -s -H "$AUTH" -H "Accept: application/vnd.github+json" "$API" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
 
-          CONTENT=$(printf 'cask "draftflow" do\n  version "%s"\n  sha256 "%s"\n\n  url "%s"\n  name "Draftflow"\n  desc "Markdown editor for Claude Code workflows"\n  homepage "https://draftflow.dev"\n\n  app "Draftflow.app"\n\n  zap trash: [\n    "~/.claude/editor-bridge",\n    "~/Library/Application Support/Draftflow",\n  ]\nend\n' "$VERSION" "$SHA" "$URL")
+          # postflight strips com.apple.quarantine so Gatekeeper doesn't reject
+          # the ad-hoc-signed bundle as "damaged" on first launch from Finder.
+          CONTENT=$(printf 'cask "draftflow" do\n  version "%s"\n  sha256 "%s"\n\n  url "%s"\n  name "Draftflow"\n  desc "Markdown editor for Claude Code workflows"\n  homepage "https://draftflow.dev"\n\n  app "Draftflow.app"\n\n  postflight do\n    system_command "/usr/bin/xattr", args: ["-cr", "#{appdir}/Draftflow.app"]\n  end\n\n  zap trash: [\n    "~/.claude/editor-bridge",\n    "~/Library/Application Support/Draftflow",\n  ]\nend\n' "$VERSION" "$SHA" "$URL")
           ENCODED=$(echo "$CONTENT" | base64 | tr -d '\n')
 
           RESULT=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$API" \

@@ -24,6 +24,7 @@
   "build": {
     "appId": "dev.draftflow.app",
     "productName": "Draftflow",
+    "afterPack": "build/afterPack.js",
     "asarUnpack": [
       "hooks/**",
       "commands/**"
@@ -31,6 +32,7 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "assets/icon.icns",
+      "identity": null,
       "target": [
         {
           "target": "dmg",
