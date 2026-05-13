@@ -13,6 +13,9 @@ function getTokenizer () {
   try { _tokenizer = require('@anthropic-ai/tokenizer'); return _tokenizer } catch (_) { return null }
 }
 
+const FEEDBACK_SERVICE_URL = 'https://draftflow-feedback.up.railway.app'
+const FEEDBACK_CLIENT_ID   = 'draftflow-app'
+
 Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'Edit', submenu: [
     { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
@@ -21,6 +24,13 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'View', submenu: [
     { label: 'Toggle Developer Tools', accelerator: 'Alt+CmdOrCtrl+I',
       click: (_, win) => win && win.webContents.toggleDevTools() },
+  ]},
+  { label: 'Help', submenu: [
+    { label: 'Send Feedback', click: () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('menu-action', 'open-feedback')
+      }
+    }},
   ]},
 ]))
 
@@ -675,4 +685,42 @@ ipcMain.handle('get-version',    async ()             => app.getVersion())
 ipcMain.handle('start-download', async (_e, { downloadUrl, version }) => {
   runDownload(downloadUrl, version)   // fire-and-forget; progress via events
   return { ok: true }
+})
+
+ipcMain.handle('get-diagnostics', async () => {
+  let errorLog = ''
+  try {
+    const lines = fs.readFileSync(DEBUG_LOG, 'utf8').split('\n').filter(l => l.trim())
+    errorLog = lines.slice(-20).join('\n')
+  } catch (_) {}
+  return {
+    appVersion:   app.getVersion(),
+    macosVersion: os.release(),
+    nodeVersion:  process.versions.node,
+    errorLog,
+  }
+})
+
+ipcMain.handle('submit-feedback', async (_e, payload) => {
+  try {
+    const res = await fetch(FEEDBACK_SERVICE_URL + '/feedback', {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Id':  FEEDBACK_CLIENT_ID,
+      },
+      body: JSON.stringify(payload),
+    })
+    if (res.status === 201) {
+      const data = await res.json()
+      return { ok: true, issueUrl: data.issueUrl }
+    }
+    if (res.status === 429) {
+      return { ok: false, rateLimit: true }
+    }
+    return { ok: false }
+  } catch (err) {
+    dbg('submit-feedback error:', err.message)
+    return { ok: false, error: err.message }
+  }
 })
