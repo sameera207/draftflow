@@ -55,6 +55,14 @@
 - Suggestion confidence threshold and max suggestions
 - One-click re-install of the `/df` Claude Code command and hooks (also runs automatically on launch)
 
+## Feedback
+- In-app feedback form — accessible from Help → Send Feedback or the `?` button in the status bar
+- Category picker: Bug, Idea, or Question
+- Collapsible diagnostics preview (app version, macOS, Node, bridge mode, last 20 error log lines)
+- Opt-out checkbox to exclude diagnostic info from submission
+- Submissions are POSTed to the `draftflow-feedback` proxy service, which creates a GitHub issue on the user's behalf — no GitHub account required
+- Success state shows a direct link to the created GitHub issue
+
 ## Keyboard Shortcuts
 | Shortcut | Action |
 |---|---|
