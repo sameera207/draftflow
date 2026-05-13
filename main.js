@@ -13,8 +13,8 @@ function getTokenizer () {
   try { _tokenizer = require('@anthropic-ai/tokenizer'); return _tokenizer } catch (_) { return null }
 }
 
-const FEEDBACK_SERVICE_URL = 'https://draftflow-feedback.up.railway.app'
-const FEEDBACK_CLIENT_ID   = 'draftflow-app'
+const FEEDBACK_SERVICE_URL = 'https://draftflow-feedback-production.up.railway.app'
+const FEEDBACK_CLIENT_ID   = '4DRCWS5auiLOVn'
 
 Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'Edit', submenu: [
