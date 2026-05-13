@@ -937,6 +937,125 @@ html.light .token-danger { color: #b04030 !important; }
   width: 7px; height: 7px; border-radius: 50%; border: 1px solid; flex-shrink: 0; transition: background .1s;
 }
 .send-token-count { font-size: 12px; color: var(--text-faint); font-family: var(--mono); letter-spacing: .02em; }
+
+/* ── WHATS NEW MODAL ── */
+.wn-backdrop {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(14,13,12,0.72);
+  display: flex; align-items: center; justify-content: center;
+}
+.wn-modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  max-width: 520px; width: 90%;
+  max-height: 82vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
+  animation: wn-enter 150ms ease-out;
+  display: flex; flex-direction: column;
+}
+@keyframes wn-enter {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+.wn-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.wn-title {
+  font-family: var(--serif); font-size: 18px; font-weight: 500;
+  color: var(--text); letter-spacing: .01em;
+}
+.wn-date {
+  font-size: 12px; color: var(--text-dim); margin-top: 3px;
+  font-family: var(--mono);
+}
+.wn-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 18px; line-height: 1;
+  padding: 0 2px; transition: color .15s;
+}
+.wn-close:hover { color: var(--text); }
+.wn-body { padding: 20px; flex: 1; }
+.wn-screenshot-wrap {
+  width: 100%; border-radius: 7px; overflow: hidden;
+  background: var(--surface2); margin-bottom: 16px;
+  position: relative; min-height: 180px;
+}
+.wn-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: wn-shimmer 1.4s infinite;
+}
+@keyframes wn-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.wn-screenshot {
+  width: 100%; display: block; border-radius: 6px;
+}
+.wn-feature-icon {
+  font-size: 28px; margin-bottom: 8px; line-height: 1;
+}
+.wn-feature-title {
+  font-size: 16px; font-weight: 500; color: var(--text);
+  margin-bottom: 8px; font-family: var(--serif);
+}
+.wn-feature-desc {
+  font-size: 14px; color: var(--text-dim);
+  line-height: 1.7; font-family: var(--mono);
+}
+.wn-carousel-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.wn-dots { display: flex; gap: 6px; align-items: center; }
+.wn-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border2); transition: background .15s;
+}
+.wn-dot-active { background: var(--accent); }
+.wn-nav { display: flex; gap: 6px; }
+.wn-btn-nav {
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text-dim); cursor: pointer;
+  font-family: var(--mono); font-size: 12px;
+  padding: 4px 10px; border-radius: 4px;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.wn-btn-nav:hover:not(:disabled) { color: var(--text); background: var(--surface3); border-color: var(--border2); }
+.wn-btn-nav:disabled { opacity: .35; cursor: default; }
+.wn-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  gap: 10px; flex-shrink: 0;
+}
+.wn-btn-prev-release {
+  background: none; border: 1px solid var(--border2);
+  color: var(--text-dim); cursor: pointer;
+  font-family: var(--mono); font-size: 12px;
+  padding: 5px 12px; border-radius: 4px;
+  margin-right: auto;
+  transition: color .15s, background .15s;
+}
+.wn-btn-prev-release:hover { color: var(--text); background: var(--surface2); }
+.wn-btn-done {
+  background: var(--accent); border: none; color: #0e0d0c;
+  cursor: pointer; font-family: var(--mono); font-size: 13px; font-weight: 500;
+  padding: 6px 18px; border-radius: 4px;
+  transition: opacity .15s;
+}
+.wn-btn-done:hover { opacity: .85; }
+html.light .wn-modal {
+  background: var(--surface);
+  box-shadow: 0 16px 48px rgba(0,0,0,.22);
+}
+html.light .wn-backdrop { background: rgba(180,175,168,0.55); }
 </style>
 </head>
 <body>
@@ -3387,6 +3506,138 @@ document.getElementById('settings-send-feedback').addEventListener('click', () =
 // Boot
 // ─────────────────────────────────────────────
 init()
+</script>
+
+<!-- WHATS NEW MODAL -->
+<div id="whats-new-backdrop" class="wn-backdrop" style="display:none">
+  <div class="wn-modal" role="dialog" aria-modal="true" aria-labelledby="wn-title">
+    <div class="wn-header">
+      <div>
+        <div class="wn-title" id="wn-title"></div>
+        <div class="wn-date" id="wn-date"></div>
+      </div>
+      <button class="wn-close" id="wn-close" aria-label="Close">×</button>
+    </div>
+    <div class="wn-body">
+      <div class="wn-screenshot-wrap" id="wn-screenshot-wrap">
+        <div class="wn-shimmer" id="wn-shimmer"></div>
+        <img id="wn-screenshot" class="wn-screenshot" alt="" style="display:none">
+      </div>
+      <div class="wn-feature-icon" id="wn-feature-icon"></div>
+      <div class="wn-feature-title" id="wn-feature-title"></div>
+      <div class="wn-feature-desc" id="wn-feature-desc"></div>
+      <div class="wn-carousel-controls" id="wn-carousel-controls">
+        <div class="wn-dots" id="wn-dots"></div>
+        <div class="wn-nav">
+          <button class="wn-btn-nav" id="wn-prev">← Prev</button>
+          <button class="wn-btn-nav" id="wn-next">Next →</button>
+        </div>
+      </div>
+    </div>
+    <div class="wn-footer">
+      <button class="wn-btn-prev-release" id="wn-prev-release" style="display:none">← Previous release</button>
+      <button class="wn-btn-done" id="wn-done">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// What's New Modal
+// ─────────────────────────────────────────────
+let wnReleases = []
+let wnRelIdx   = 0
+let wnFeatIdx  = 0
+
+function showWhatsNewModal (releases) {
+  wnReleases = releases
+  wnRelIdx   = 0
+  wnFeatIdx  = 0
+  renderWnModal()
+  document.getElementById('whats-new-backdrop').style.display = 'flex'
+  document.getElementById('wn-done').focus()
+}
+
+function renderWnModal () {
+  const rel        = wnReleases[wnRelIdx]
+  const feat       = rel.features[wnFeatIdx]
+  const totalFeats = rel.features.length
+  const totalRels  = wnReleases.length
+
+  document.getElementById('wn-title').textContent = rel.title
+  document.getElementById('wn-date').textContent  = new Date(rel.date).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  })
+  document.getElementById('wn-feature-icon').textContent  = feat.icon || ''
+  document.getElementById('wn-feature-title').textContent = feat.title
+  document.getElementById('wn-feature-desc').textContent  = feat.description
+
+  // Screenshot
+  const wrap    = document.getElementById('wn-screenshot-wrap')
+  const img     = document.getElementById('wn-screenshot')
+  const shimmer = document.getElementById('wn-shimmer')
+  if (feat.screenshot) {
+    wrap.style.display    = 'block'
+    img.style.display     = 'none'
+    shimmer.style.display = 'block'
+    img.src = feat.screenshot
+    img.onload = () => { shimmer.style.display = 'none'; img.style.display = 'block' }
+    img.onerror = () => { wrap.style.display = 'none' }
+  } else {
+    wrap.style.display = 'none'
+  }
+
+  // Carousel controls
+  const controls = document.getElementById('wn-carousel-controls')
+  controls.style.display = totalFeats > 1 ? 'flex' : 'none'
+  document.getElementById('wn-dots').innerHTML = rel.features.map((_, i) =>
+    `<span class="wn-dot ${i === wnFeatIdx ? 'wn-dot-active' : ''}"></span>`
+  ).join('')
+  document.getElementById('wn-prev').disabled = wnFeatIdx === 0
+  document.getElementById('wn-next').disabled = wnFeatIdx === totalFeats - 1
+
+  // Previous release link
+  const prevRelBtn = document.getElementById('wn-prev-release')
+  if (totalRels > 1 && wnRelIdx < totalRels - 1) {
+    prevRelBtn.style.display = 'inline-block'
+    prevRelBtn.textContent   = `← ${wnReleases[wnRelIdx + 1].version}`
+  } else {
+    prevRelBtn.style.display = 'none'
+  }
+}
+
+function closeWhatsNewModal () {
+  document.getElementById('whats-new-backdrop').style.display = 'none'
+}
+
+function initWhatsNewModal () {
+  document.getElementById('wn-close').addEventListener('click', closeWhatsNewModal)
+  document.getElementById('wn-done').addEventListener('click',  closeWhatsNewModal)
+  document.getElementById('whats-new-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('whats-new-backdrop')) closeWhatsNewModal()
+  })
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('whats-new-backdrop').style.display !== 'none') {
+      closeWhatsNewModal()
+    }
+  })
+  document.getElementById('wn-prev').addEventListener('click', () => {
+    if (wnFeatIdx > 0) { wnFeatIdx--; renderWnModal() }
+  })
+  document.getElementById('wn-next').addEventListener('click', () => {
+    if (wnFeatIdx < wnReleases[wnRelIdx].features.length - 1) { wnFeatIdx++; renderWnModal() }
+  })
+  document.getElementById('wn-prev-release').addEventListener('click', () => {
+    if (wnRelIdx < wnReleases.length - 1) { wnRelIdx++; wnFeatIdx = 0; renderWnModal() }
+  })
+
+  // IPC: main process can trigger modal
+  if (window.api && window.api.onShowWhatsNew) {
+    window.api.onShowWhatsNew(releases => showWhatsNewModal(releases))
+  }
+}
+
+initWhatsNewModal()
 </script>
 </body>
 </html>
