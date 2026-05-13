@@ -47,4 +47,5 @@ contextBridge.exposeInMainWorld('api', {
   readSkillContent: (skillPath) => ipcRenderer.invoke('read-skill-content', skillPath),
   getDiagnostics:   ()          => ipcRenderer.invoke('get-diagnostics'),
   submitFeedback:   (payload)   => ipcRenderer.invoke('submit-feedback', payload),
+  onShowWhatsNew:   (cb)        => ipcRenderer.on('show-whats-new', (_e, releases) => cb(releases)),
 })
