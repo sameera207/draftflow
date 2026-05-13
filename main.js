@@ -28,7 +28,7 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'Help', submenu: [
     { label: "What's New", click: async () => {
       try {
-        const res = await fetch('https://draftflow.dev/releases.json')
+        const res = await fetch('https://raw.githubusercontent.com/sameera207/draftflow-website/main/releases.json')
         const releases = await res.json()
         const featureReleases = releases.filter(r => r.type === 'feature')
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -375,7 +375,7 @@ async function checkForUpdate (win) {
 async function checkForNewFeatures () {
   let releases
   try {
-    const res = await fetch('https://draftflow.dev/releases.json')
+    const res = await fetch('https://raw.githubusercontent.com/sameera207/draftflow-website/main/releases.json')
     if (!res.ok) return
     releases = await res.json()
   } catch { return }
