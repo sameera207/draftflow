@@ -26,6 +26,17 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
       click: (_, win) => win && win.webContents.toggleDevTools() },
   ]},
   { label: 'Help', submenu: [
+    { label: "What's New", click: async () => {
+      try {
+        const res = await fetch('https://draftflow.dev/releases.json')
+        const releases = await res.json()
+        const featureReleases = releases.filter(r => r.type === 'feature')
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('show-whats-new', featureReleases)
+        }
+      } catch { /* silently fail */ }
+    }},
+    { type: 'separator' },
     { label: 'Send Feedback', click: () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('menu-action', 'open-feedback')
@@ -255,6 +266,8 @@ function createWindow () {
     }
     // Check for updates after a short delay so it never blocks startup
     setTimeout(() => checkForUpdate(mainWindow), 5000)
+    // Check for new feature releases and show What's New modal if needed
+    setTimeout(() => checkForNewFeatures(), 6000)
   })
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
@@ -355,6 +368,36 @@ async function checkForUpdate (win) {
       })
     }
   } catch (_) {}  // network errors are silent — never bother the user
+}
+
+// ── What's New feature check ─────────────────────────────────────────────────
+
+async function checkForNewFeatures () {
+  let releases
+  try {
+    const res = await fetch('https://draftflow.dev/releases.json')
+    if (!res.ok) return
+    releases = await res.json()
+  } catch { return }
+
+  const featureReleases = releases.filter(r => r.type === 'feature')
+  if (!featureReleases.length) return
+
+  const latestFeatureVersion = featureReleases[0].version
+  const lastSeen = settings.lastSeenVersion || null
+
+  if (lastSeen === latestFeatureVersion) return
+
+  const toShow = lastSeen
+    ? featureReleases.filter(r => isNewerVersion(r.version, lastSeen))
+    : [featureReleases[0]]
+
+  if (toShow.length && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('show-whats-new', toShow)
+  }
+
+  settings.lastSeenVersion = releases[0].version
+  persistSettings(settings)
 }
 
 // Streams a URL to destPath, calling onProgress(0–100) as bytes arrive.
