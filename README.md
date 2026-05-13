@@ -4,8 +4,6 @@
 
 A minimal Markdown editor built for Claude Code workflows. Write prompts, skills, and drafts with live preview, skill autocomplete, and a direct bridge back to Claude Code.
 
-![Draftflow](https://draftflow.dev/assets/hero.gif)
-
 ## Features
 
 - **Markdown editor** with live split-pane preview
