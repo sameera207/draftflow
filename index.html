@@ -69,16 +69,6 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .dot-close { background: #e05a4e; } .dot-min { background: #e0b84e; } .dot-max { background: #56c354; }
 .traffic-dot:hover { opacity: .7; }
 
-.titlebar-center {
-  font-size: 13px; color: var(--text-dim); letter-spacing: .03em;
-  position: absolute; left: 50%; transform: translateX(-50%);
-  pointer-events: none; white-space: nowrap;
-  display: flex; align-items: center; gap: 0;
-}
-.titlebar-dir   { color: var(--text-dim); }
-.titlebar-fname { color: var(--text); }
-.titlebar-dot   { color: var(--accent); margin-left: 5px; display: none; }
-.titlebar-dot.show { display: inline; }
 
 .titlebar-actions {
   display: flex; gap: 2px; margin-left: auto;
@@ -959,11 +949,7 @@ html.light .token-danger { color: #b04030 !important; }
     <div class="traffic-dot dot-max"   id="btn-max"   title="Maximize"></div>
   </div>
 
-  <div class="titlebar-center">
-    <span class="titlebar-dir"   id="tb-dir"></span>
-    <span class="titlebar-fname" id="tb-name">untitled</span>
-    <span class="titlebar-dot"   id="tb-dot">●</span>
-  </div>
+
 
   <div class="titlebar-actions">
     <button class="tb-btn" id="btn-files" title="Toggle file panel">
@@ -1689,7 +1675,6 @@ async function init () {
 function setDirty (dirty) {
   isDirty = dirty
   window.__isDirty = dirty
-  document.getElementById('tb-dot').classList.toggle('show', dirty)
 }
 
 // ─────────────────────────────────────────────
@@ -1789,14 +1774,7 @@ async function rescanSkills () {
 // ─────────────────────────────────────────────
 // UI: Titlebar
 // ─────────────────────────────────────────────
-function updateTitlebar () {
-  const name = currentFilePath ? currentFilePath.split('/').pop() : 'untitled'
-  const dir  = currentFilePath
-    ? currentFilePath.slice(0, currentFilePath.lastIndexOf('/') + 1).replace(/^\/Users\/[^/]+/, '~')
-    : ''
-  document.getElementById('tb-name').textContent = name
-  document.getElementById('tb-dir').textContent  = dir
-}
+function updateTitlebar () {}
 
 // ─────────────────────────────────────────────
 // UI: Editor path breadcrumb
