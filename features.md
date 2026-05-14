@@ -1,5 +1,10 @@
 # Draftflow Features
 
+## Distribution & Updates
+- Apple Developer ID code signing — no Gatekeeper warning on first launch
+- Notarization — Apple-verified builds stapled to every DMG release
+- Silent background auto-update via `electron-updater` — downloads on launch, installs on next restart with a native macOS notification
+
 ## Editor
 - Markdown editor with live split-pane preview
 - Edit / split / preview mode toggle

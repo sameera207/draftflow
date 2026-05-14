@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard, shell } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const path  = require('path')
 const fs    = require('fs')
 const os    = require('os')
@@ -320,6 +321,11 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+
+  // Silent background update — downloads and installs on next restart
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify()
+  }, 3000)
 })
 
 app.on('window-all-closed', () => {
