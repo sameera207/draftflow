@@ -1,6 +1,6 @@
 {
   "name": "draftflow",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Markdown editor for Claude Code workflows",
   "main": "main.js",
   "scripts": {
