@@ -1,6 +1,6 @@
 {
   "name": "draftflow",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Markdown editor for Claude Code workflows",
   "main": "main.js",
   "scripts": {
@@ -42,11 +42,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         }
       ]
     },
