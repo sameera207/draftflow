@@ -78,15 +78,14 @@ jobs:
       # electron-builder outputs Draftflow-{version}-arm64.dmg and latest-mac.yml.
       # Rename both to drop the arch suffix so filenames match the Homebrew cask
       # URL and so electron-updater can resolve the download URL from latest-mac.yml.
-      # Then staple the notarization ticket directly onto the DMG so Gatekeeper
-      # can verify it offline (the .app inside is already stapled by electron-builder).
-      - name: Rename and staple artifacts
+      # Note: electron-builder notarizes the .app (not the DMG), so the staple
+      # ticket lives on the .app inside — that's sufficient for Gatekeeper.
+      - name: Rename artifacts
         run: |
           VERSION="${{ steps.ver.outputs.version }}"
           mv "dist/Draftflow-${VERSION}-arm64.dmg" "dist/Draftflow-${VERSION}.dmg"
           sed -i '' "s/Draftflow-${VERSION}-arm64\.dmg/Draftflow-${VERSION}.dmg/g" \
             "dist/latest-mac.yml"
-          xcrun stapler staple "dist/Draftflow-${VERSION}.dmg"
 
       # Commit the version bump, tag it, push both to main.
       - name: Commit and tag
