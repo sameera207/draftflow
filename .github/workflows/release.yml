@@ -107,6 +107,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/Draftflow-${{ steps.ver.outputs.version }}.dmg
+            dist/Draftflow-${{ steps.ver.outputs.version }}-arm64.zip
             dist/latest-mac.yml
 
       # Update the Homebrew tap cask with the new version + SHA256.
