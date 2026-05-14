@@ -55,6 +55,12 @@
 - Suggestion confidence threshold and max suggestions
 - One-click re-install of the `/df` Claude Code command and hooks (also runs automatically on launch)
 
+## What's New
+- Modal shown automatically on first launch after an update, displaying new features for that version
+- Carousel navigation when multiple features are in a release
+- Revisit any time via Help → What's New
+- Fetches live from `releases.json` — always up to date without an app update
+
 ## Feedback
 - In-app feedback form — accessible from Help → Send Feedback or the `?` button in the status bar
 - Category picker: Bug, Idea, or Question
