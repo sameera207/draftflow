@@ -236,6 +236,15 @@ function _createRendererApi(manifest, pluginId) {
         fs_m.writeFileSync(expanded, content, 'utf8')
       },
     },
+
+    // Generic IPC bridge — mirrors api.ipc.handle() registered in initMain.
+    // Calls are automatically namespaced to `plugin:<id>:<name>` so plugins
+    // can only reach their own handlers, never Draftflow's internal channels.
+    ipc: {
+      invoke(name, ...args) {
+        return ipcRenderer.invoke(`plugin:${pluginId}:${name}`, ...args)
+      },
+    },
   }
 
   // Apply permission scoping
@@ -302,6 +311,7 @@ contextBridge.exposeInMainWorld('api', {
   onDownloadDone:     (cb) => ipcRenderer.on('download-done',     ()         => cb()),
   onDownloadError:    (cb) => ipcRenderer.on('download-error',    (_e, msg)  => cb(msg)),
   openUrl:            (url)          => ipcRenderer.invoke('open-url', url),
+  openPluginsDir:     ()             => ipcRenderer.invoke('open-plugins-dir'),
   getVersion:         ()             => ipcRenderer.invoke('get-version'),
   startDownload:      (downloadUrl, version) => ipcRenderer.invoke('start-download', { downloadUrl, version }),
   sendBack:       (content) => ipcRenderer.invoke('send-back', content),

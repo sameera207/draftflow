@@ -1,0 +1,15 @@
+{
+  "id": "df-plugin-tokencount-example",
+  "name": "Token Counter",
+  "version": "0.2.0",
+  "description": "Reference plugin — shows a live token estimate in the plugin toolbar.",
+
+  "permissions": [
+    "editor.read",
+    "ui.pluginToolbar"
+  ],
+
+  "contributes": {
+    "pluginToolbar": true
+  }
+}

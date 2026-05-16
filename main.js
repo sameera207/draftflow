@@ -308,6 +308,7 @@ function createWindow () {
 }
 
 app.whenReady().then(async () => {
+  try { installBundledPlugins() } catch (e) { dbg('installBundledPlugins failed:', e.message) }
   loadedPlugins = await loadPlugins()
   let updatedIntegrationFiles = []
   try { updatedIntegrationFiles = installIntegration() || [] } catch (e) { dbg('installIntegration failed:', e.message) }
@@ -598,6 +599,24 @@ function installFile (src, dest) {
   return true
 }
 
+function installBundledPlugins () {
+  const bundledDir = path.join(__dirname, 'plugins')
+  if (!fs.existsSync(bundledDir)) return
+
+  const destDir = path.join(os.homedir(), '.draftflow', 'plugins')
+  fs.mkdirSync(destDir, { recursive: true })
+
+  for (const entry of fs.readdirSync(bundledDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const pluginSrc  = path.join(bundledDir, entry.name)
+    const pluginDest = path.join(destDir, entry.name)
+    fs.mkdirSync(pluginDest, { recursive: true })
+    for (const file of fs.readdirSync(pluginSrc)) {
+      installFile(path.join(pluginSrc, file), path.join(pluginDest, file))
+    }
+  }
+}
+
 function installIntegration () {
   const updated = []
 
@@ -739,6 +758,11 @@ ipcMain.handle('maximize',       async ()             => {
 })
 ipcMain.handle('close',          async ()             => mainWindow.close())
 ipcMain.handle('open-url',       async (_e, url)      => { await shell.openExternal(url); return true })
+ipcMain.handle('open-plugins-dir', async () => {
+  const dir = path.join(os.homedir(), '.draftflow', 'plugins')
+  fs.mkdirSync(dir, { recursive: true })
+  await shell.openPath(dir)
+})
 ipcMain.handle('get-version',    async ()             => app.getVersion())
 ipcMain.handle('start-download', async (_e, { downloadUrl, version }) => {
   runDownload(downloadUrl, version)   // fire-and-forget; progress via events

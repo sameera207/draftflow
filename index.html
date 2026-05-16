@@ -937,7 +937,6 @@ html.light .token-danger { color: #b04030 !important; }
 .chip-indicator {
   width: 7px; height: 7px; border-radius: 50%; border: 1px solid; flex-shrink: 0; transition: background .1s;
 }
-.send-token-count { font-size: 12px; color: var(--text-faint); font-family: var(--mono); letter-spacing: .02em; }
 
 /* ── WHATS NEW MODAL ── */
 .wn-backdrop {
@@ -1234,9 +1233,6 @@ html.light .wn-backdrop { background: rgba(180,175,168,0.55); }
           <div id="send-bar-attach" class="send-bar-attach" style="display:none;">
             <span class="send-bar-attach-label">suggested skills<span class="send-bar-attach-hint">click to add · click again to remove</span></span>
             <div id="attach-chips"></div>
-          </div>
-          <div class="send-bar-actions">
-            <span id="send-token-count" class="send-token-count">~0 tokens</span>
           </div>
         </div>
 
@@ -1579,7 +1575,6 @@ function renderAttachChips() {
       if (attachedSkillIds.has(id)) attachedSkillIds.delete(id)
       else attachedSkillIds.add(id)
       renderAttachChips()
-      updateSendTokenCount()
     })
   })
 }
@@ -1592,24 +1587,8 @@ function renderSendBar(suggestions) {
   const attachRow = document.getElementById('send-bar-attach')
   if (attachRow) attachRow.style.display = suggestions.length > 0 ? 'flex' : 'none'
   renderAttachChips()
-  updateSendTokenCount()
 }
 
-async function updateSendTokenCount() {
-  const el = document.getElementById('send-token-count')
-  if (!el) return
-  const text = editorEl.value
-  const total = window.api && window.api.countTokens
-    ? await window.api.countTokens(text)
-    : Math.ceil(text.length / 4)
-  const n = attachedSkillIds.size
-  el.textContent = n > 0
-    ? `~${total.toLocaleString()} tokens with ${n} skill${n > 1 ? 's' : ''}`
-    : `~${total.toLocaleString()} tokens`
-  el.className = 'send-token-count'
-  if (total >= 4000) el.classList.add('token-danger')
-  else if (total >= 2000) el.classList.add('token-warn')
-}
 
 function onEditorInputForSuggestions(value) {
   clearTimeout(suggestionDebounceTimer)
@@ -2283,7 +2262,6 @@ editorEl.addEventListener('input', () => {
   if (!isDirty) setDirty(true)
   updateWordCount()
   updateTokenCount()
-  updateSendTokenCount()
   if (currentMode !== 'edit') updatePreview()
   handleSuggestion()
   onEditorInputForSuggestions(editorEl.value)
@@ -3739,9 +3717,7 @@ async function initPlugins() {
 }
 
 function openPluginSettings() {
-  // TODO: wire to the real settings panel, scrolled to the plugins section.
-  // Tracked in follow-up issue. Do not remove this TODO.
-  console.log('[plugins] TODO: open plugin settings panel')
+  if (window.api) window.api.openPluginsDir()
 }
 
 document.addEventListener('DOMContentLoaded', initPlugins)

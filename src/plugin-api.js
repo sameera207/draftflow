@@ -47,6 +47,16 @@ class PluginAPI {
     },
   }
 
+  // Generic IPC bridge — lets plugins expose main-process functionality to
+  // their own initRenderer without requiring the core plugin API to grow.
+  // Channels are automatically namespaced to `plugin:<id>:<name>` so plugins
+  // can never accidentally collide with each other or with Draftflow's own IPC.
+  ipc = {
+    handle(_name, _fn) {
+      // stub — wired with ipcMain in createScopedAPI
+    },
+  }
+
   events = {
     on(eventName, handler) {
       if (!VALID_EVENTS.has(eventName)) throw new Error(`events.on: unknown event "${eventName}"`)
@@ -156,6 +166,17 @@ function createScopedAPI(manifest, pluginId) {
         fs.writeFileSync(expanded, content, 'utf8')
       }
     }
+  }
+
+  // Wire ipc.handle with automatic channel namespacing
+  const { ipcMain } = require('electron')
+  api.ipc = {
+    handle(name, fn) {
+      if (typeof name !== 'string' || !/^[a-z0-9-]+$/.test(name)) {
+        throw new Error(`ipc.handle: name must be lowercase alphanumeric/hyphen, got "${name}"`)
+      }
+      ipcMain.handle(`plugin:${pluginId}:${name}`, (_event, ...args) => fn(...args))
+    },
   }
 
   // Tier 3 — delete unpermitted

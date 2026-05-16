@@ -28,7 +28,8 @@
     "afterPack": "build/afterPack.js",
     "asarUnpack": [
       "hooks/**",
-      "commands/**"
+      "commands/**",
+      "plugins/**"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
