@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <script src="./node_modules/mermaid/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="src/plugin-styles.css">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1056,6 +1057,54 @@ html.light .wn-modal {
   box-shadow: 0 16px 48px rgba(0,0,0,.22);
 }
 html.light .wn-backdrop { background: rgba(180,175,168,0.55); }
+
+/* ── PLUGIN TOOLBAR ── */
+.plugin-toolbar {
+  height: 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.plugin-toolbar-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+#plugin-toolbar-mounts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.plugin-mount {
+  height: 32px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.plugin-toolbar-spacer { flex: 1; }
+.plugin-manage-btn {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  transition: color 0.12s;
+}
+.plugin-manage-btn:hover { color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -1160,6 +1209,19 @@ html.light .wn-backdrop { background: rgba(180,175,168,0.55); }
         <button class="fs-btn"        data-fs="medium">M</button>
         <button class="fs-btn"        data-fs="large">L</button>
       </div>
+    </div>
+
+    <!-- Plugin toolbar — hidden until plugins load -->
+    <div id="plugin-toolbar" class="plugin-toolbar" style="display: none;">
+      <span class="plugin-toolbar-label">plugins</span>
+      <div id="plugin-toolbar-mounts">
+        <!-- Mount divs injected here by initPlugins() at runtime.
+             One per loaded plugin: <div id="plugin-mount-{id}" class="plugin-mount"> -->
+      </div>
+      <div class="plugin-toolbar-spacer"></div>
+      <button class="plugin-manage-btn" onclick="openPluginSettings()">
+        manage plugins ↗
+      </button>
     </div>
 
     <div class="editor-body">
@@ -2310,8 +2372,10 @@ document.querySelectorAll('.fs-btn').forEach(btn => {
 function applyTheme (theme) {
   const isLight = theme === 'light'
   document.documentElement.classList.toggle('light', isLight)
+  document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark')
   document.getElementById('theme-icon-dark').style.display  = isLight ? 'none'  : ''
   document.getElementById('theme-icon-light').style.display = isLight ? ''      : 'none'
+  if (window.api && window.api.plugins) window.api.plugins.fireLocalEvent('theme:changed', { theme })
   initMermaid()
   updatePreview()
 }
@@ -3638,6 +3702,49 @@ function initWhatsNewModal () {
 }
 
 initWhatsNewModal()
+</script>
+
+<script>
+// ── Plugin system ─────────────────────────────────────────────────────────────
+
+async function initPlugins() {
+  if (!window.api || !window.api.plugins) return
+
+  const plugins = await window.api.plugins.list()
+  if (plugins.length === 0) return
+
+  const toolbar = document.getElementById('plugin-toolbar')
+  const mounts  = document.getElementById('plugin-toolbar-mounts')
+
+  toolbar.style.display = 'flex'
+
+  for (const plugin of plugins) {
+    const div = document.createElement('div')
+    div.id        = `plugin-mount-${plugin.id}`
+    div.className = 'plugin-mount'
+    mounts.appendChild(div)
+  }
+
+  const rendererIds = await window.api.plugins.initRenderers()
+
+  for (const id of rendererIds) {
+    try {
+      await window.api.plugins.callInitRenderer(id)
+    } catch (e) {
+      console.error(`[plugins] initRenderer failed for "${id}":`, e)
+    }
+  }
+
+  window.api.plugins.fireLocalEvent('app:ready', {})
+}
+
+function openPluginSettings() {
+  // TODO: wire to the real settings panel, scrolled to the plugins section.
+  // Tracked in follow-up issue. Do not remove this TODO.
+  console.log('[plugins] TODO: open plugin settings panel')
+}
+
+document.addEventListener('DOMContentLoaded', initPlugins)
 </script>
 </body>
 </html>

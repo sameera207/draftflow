@@ -4,6 +4,9 @@ const path  = require('path')
 const fs    = require('fs')
 const os    = require('os')
 const https = require('https')
+const { loadPlugins } = require('./src/plugin-loader')
+
+let loadedPlugins = []
 
 const DEBUG_LOG = path.join(os.homedir(), '.claude', 'draftflow-debug.log')
 function dbg (...args) { try { fs.appendFileSync(DEBUG_LOG, new Date().toISOString() + ' ' + args.join(' ') + '\n') } catch (_) {} }
@@ -304,7 +307,8 @@ function createWindow () {
   })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  loadedPlugins = await loadPlugins()
   let updatedIntegrationFiles = []
   try { updatedIntegrationFiles = installIntegration() || [] } catch (e) { dbg('installIntegration failed:', e.message) }
   createWindow()
@@ -457,6 +461,7 @@ ipcMain.handle('open-file', async () => {
   const filePath = r.filePaths[0]
   const content  = fs.readFileSync(filePath, 'utf8')
   addRecentFile(filePath)
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('plugin:event', 'file:opened', { path: filePath })
   return { filePath, content }
 })
 
@@ -464,6 +469,7 @@ ipcMain.handle('save-file', async (_e, { content, filePath }) => {
   if (!filePath) return null
   fs.writeFileSync(filePath, content, 'utf8')
   addRecentFile(filePath)
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('plugin:event', 'file:saved', { path: filePath })
   return { filePath }
 })
 
@@ -475,6 +481,7 @@ ipcMain.handle('save-file-as', async (_e, { content }) => {
   if (r.canceled || !r.filePath) return null
   fs.writeFileSync(r.filePath, content, 'utf8')
   addRecentFile(r.filePath)
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('plugin:event', 'file:saved', { path: r.filePath })
   return { filePath: r.filePath }
 })
 
@@ -484,6 +491,7 @@ ipcMain.handle('read-file', async (_e, filePath) => {
   try {
     const content = fs.readFileSync(filePath, 'utf8')
     addRecentFile(filePath)
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('plugin:event', 'file:opened', { path: filePath })
     return { filePath, content }
   } catch (_) { return null }
 })
@@ -569,6 +577,7 @@ ipcMain.handle('send-back', async (_e, content) => {
     const length = (content || '').length
     dbg('send-back: writing', length, 'bytes to', responsePath)
     fs.writeFileSync(responsePath, content, 'utf8')
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('plugin:event', 'send:triggered', { content })
     return { ok: true, path: responsePath }
   } catch (err) {
     dbg('send-back: failed', err.message)
@@ -748,6 +757,47 @@ ipcMain.handle('get-diagnostics', async () => {
     nodeVersion:  process.versions.node,
     errorLog,
   }
+})
+
+// ── Plugin IPC ────────────────────────────────────────────────────────────────
+
+const PLUGIN_SETTINGS_PATH = path.join(os.homedir(), '.draftflow', 'settings.json')
+
+function readPluginSettings() {
+  if (!fs.existsSync(PLUGIN_SETTINGS_PATH)) return {}
+  try   { return JSON.parse(fs.readFileSync(PLUGIN_SETTINGS_PATH, 'utf8')) }
+  catch { return {} }
+}
+
+function writePluginSettings(data) {
+  fs.mkdirSync(path.dirname(PLUGIN_SETTINGS_PATH), { recursive: true })
+  fs.writeFileSync(PLUGIN_SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf8')
+}
+
+ipcMain.handle('plugin:list', () =>
+  loadedPlugins.map(p => ({ id: p.id, name: p.name, version: p.version }))
+)
+
+ipcMain.handle('plugin:settings-get', (_e, pluginId, key) => {
+  const data = readPluginSettings()
+  return data[`${pluginId}.${key}`] ?? null
+})
+
+ipcMain.handle('plugin:settings-set', (_e, pluginId, key, value) => {
+  const data = readPluginSettings()
+  data[`${pluginId}.${key}`] = value
+  writePluginSettings(data)
+})
+
+ipcMain.handle('plugin:init-renderers', () =>
+  loadedPlugins
+    .filter(p => p.initRenderer !== null)
+    .map(p => p.id)
+)
+
+ipcMain.handle('plugin:editor-insert', (_e, text) => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (win) win.webContents.send('plugin:do-editor-insert', text)
 })
 
 ipcMain.handle('submit-feedback', async (_e, payload) => {

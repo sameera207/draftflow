@@ -1,0 +1,84 @@
+:root {
+  --df-bg:                #f7f4ef;
+  --df-surface:           #ede9e1;
+  --df-surface-2:         #e3dfd7;
+  --df-text:              #1a1714;
+  --df-text-muted:        #6b6560;
+  --df-text-faint:        #a09890;
+  --df-accent:            #2d5a3d;
+  --df-accent-light:      #e8f0ea;
+  --df-accent-border:     rgba(45,90,61,0.2);
+  --df-border:            rgba(26,23,20,0.1);
+  --df-border-strong:     rgba(26,23,20,0.2);
+  --df-danger:            #c0392b;
+  --df-danger-light:      rgba(192,57,43,0.1);
+  --df-danger-border:     rgba(192,57,43,0.25);
+  --df-font-mono:         'JetBrains Mono', 'Fira Code', monospace;
+  --df-font-sans:         'DM Sans', system-ui, sans-serif;
+  --df-plugin-btn-height: 22px;
+  --df-plugin-btn-radius: 4px;
+}
+
+[data-theme="dark"] {
+  --df-bg:                #1a1814;
+  --df-surface:           #211f1c;
+  --df-surface-2:         #2a2724;
+  --df-text:              #e8e3dc;
+  --df-text-muted:        #8a8278;
+  --df-text-faint:        #524e4a;
+  --df-accent:            #7eb88a;
+  --df-accent-light:      rgba(126,184,138,0.12);
+  --df-accent-border:     rgba(126,184,138,0.25);
+  --df-border:            rgba(255,255,255,0.07);
+  --df-border-strong:     rgba(255,255,255,0.13);
+  --df-danger:            #e06c75;
+  --df-danger-light:      rgba(224,108,117,0.12);
+  --df-danger-border:     rgba(224,108,117,0.3);
+}
+
+.df-plugin-btn {
+  height: var(--df-plugin-btn-height);
+  border: 1px solid var(--df-border-strong);
+  background: var(--df-surface);
+  border-radius: var(--df-plugin-btn-radius);
+  color: var(--df-text-muted);
+  font-size: 0.68rem;
+  font-family: var(--df-font-mono);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.df-plugin-btn:hover {
+  background: var(--df-surface-2);
+  color: var(--df-text);
+}
+.df-plugin-btn--active {
+  background: var(--df-accent-light);
+  border-color: var(--df-accent-border);
+  color: var(--df-accent);
+}
+.df-plugin-btn--danger {
+  background: var(--df-danger-light);
+  border-color: var(--df-danger-border);
+  color: var(--df-danger);
+}
+.df-plugin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: var(--df-border);
+  border-radius: 3px;
+  font-size: 0.55rem;
+  color: var(--df-text-faint);
+  font-family: var(--df-font-mono);
+  flex-shrink: 0;
+}

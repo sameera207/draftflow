@@ -84,6 +84,19 @@
 | `⌘O` | Open file |
 | `⌘N` | New file |
 
+## Plugin System
+- First-class plugin architecture — plugins live in `~/.draftflow/plugins/<name>/` and declare capabilities via a `plugin.json` manifest
+- Scoped `PluginAPI` — each plugin receives an API scoped to only the capabilities it declared; unpermitted methods are deleted at load time, not just blocked
+- Two-phase lifecycle — `initMain` runs in the main process before the window opens; `initRenderer` runs in the renderer after DOM is ready
+- Plugin toolbar — a dedicated toolbar strip (between the editor toolbar and content area) with one mount div per loaded plugin; hidden when no plugins are loaded
+- Lifecycle events — plugins subscribe to `file:opened`, `file:saved`, `send:triggered`, `theme:changed`, and `app:ready`
+- Namespaced settings — plugins read/write `~/.draftflow/settings.json` with keys automatically namespaced to `<pluginId>.<key>`
+- Permission model — nine granular permissions (`editor.insert`, `editor.read`, `settings.read`, `settings.readwrite`, `network.fetch`, `fs.read`, `fs.write`, `ui.pluginToolbar`, `ui.modal`) with `allowedOrigins` and `allowedPaths` guards
+- HTML modal API — `api.ui.showModal()` renders a Draftflow-managed modal with sanitized content (DOM whitelist: `p`, `strong`, `em`, `code`, `pre`, `br`)
+- Keyboard command registration — plugins register commands with Electron accelerator shortcuts via `api.commands.register()`
+- Silent failure isolation — a plugin that fails validation, load, or `initMain` is skipped with a console warning; other plugins continue normally
+- `df-hello` smoke-test plugin bundled as a reference implementation
+
 ## Appearance
 - Dark and light theme
 - Three font-size levels (small / medium / large)
