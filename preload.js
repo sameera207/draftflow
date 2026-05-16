@@ -314,6 +314,7 @@ contextBridge.exposeInMainWorld('api', {
   openPluginsDir:     ()             => ipcRenderer.invoke('open-plugins-dir'),
   getVersion:         ()             => ipcRenderer.invoke('get-version'),
   startDownload:      (downloadUrl, version) => ipcRenderer.invoke('start-download', { downloadUrl, version }),
+  installUpdate:      ()                     => ipcRenderer.invoke('install-update'),
   sendBack:       (content) => ipcRenderer.invoke('send-back', content),
   installDfCommand:   () => ipcRenderer.invoke('install-df-command'),
   dfCommandInstalled: () => ipcRenderer.invoke('df-command-installed'),

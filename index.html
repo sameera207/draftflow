@@ -1711,11 +1711,14 @@ async function init () {
       return
     }
 
+    let readyToInstall = false
+
     badge.addEventListener('click', async (e) => {
       if (e.target.id === 'update-dismiss') {
         badge.classList.remove('visible')
         return
       }
+      if (readyToInstall) { window.api.installUpdate(); return }
       if (downloading) return
       if (!downloadUrl) { window.api.openUrl(url); return }
 
@@ -1730,8 +1733,9 @@ async function init () {
     })
 
     window.api.onDownloadDone(() => {
+      readyToInstall = true
       downloading = false
-      label.textContent = 'drag to Applications in Finder'
+      label.textContent = 'restart to install'
       dismiss.style.display = ''
     })
 

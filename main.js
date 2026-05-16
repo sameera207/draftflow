@@ -1,9 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard, shell } = require('electron')
 const { autoUpdater } = require('electron-updater')
+autoUpdater.autoDownload = false
 const path  = require('path')
 const fs    = require('fs')
 const os    = require('os')
-const https = require('https')
 const { loadPlugins } = require('./src/plugin-loader')
 
 let loadedPlugins = []
@@ -269,7 +269,10 @@ function createWindow () {
       if (bridgeData) mainWindow.webContents.send('bridge-open', bridgeData)
     }
     // Check for updates after a short delay so it never blocks startup
-    setTimeout(() => checkForUpdate(mainWindow), 5000)
+    setTimeout(() => {
+      if (isHomebrew()) checkForUpdate(mainWindow)
+      else autoUpdater.checkForUpdates().catch(e => dbg('checkForUpdates error:', e.message))
+    }, 5000)
     // Check for new feature releases and show What's New modal if needed
     setTimeout(() => checkForNewFeatures(), 6000)
   })
@@ -327,14 +330,37 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 
-  // Silent background update — downloads and installs on next restart
-  setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify()
-  }, 3000)
 })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// ── electron-updater events → renderer ───────────────────────────────────────
+
+autoUpdater.on('update-available', (info) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-available', { version: info.version, homebrew: false, downloadUrl: '__auto__' })
+  }
+})
+
+autoUpdater.on('download-progress', ({ percent }) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('download-progress', Math.round(percent))
+  }
+})
+
+autoUpdater.on('update-downloaded', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('download-done')
+  }
+})
+
+autoUpdater.on('error', (err) => {
+  dbg('autoUpdater error:', err.message)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('download-error', err.message)
+  }
 })
 
 // ── Update checker ────────────────────────────────────────────────────────────
@@ -411,45 +437,6 @@ async function checkForNewFeatures () {
   persistSettings(settings)
 }
 
-// Streams a URL to destPath, calling onProgress(0–100) as bytes arrive.
-// Follows up to 5 redirects (GitHub asset URLs redirect to S3).
-function downloadFile (url, destPath, onProgress, redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirects > 5) { reject(new Error('Too many redirects')); return }
-    https.get(url, { headers: { 'User-Agent': 'Draftflow' } }, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
-        downloadFile(res.headers.location, destPath, onProgress, redirects + 1)
-          .then(resolve).catch(reject)
-        return
-      }
-      if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return }
-      const total    = parseInt(res.headers['content-length'] || '0', 10)
-      let received   = 0
-      const file     = fs.createWriteStream(destPath)
-      res.on('data', chunk => {
-        received += chunk.length
-        if (total) onProgress(Math.round(received / total * 100))
-      })
-      res.pipe(file)
-      file.on('finish', () => file.close(resolve))
-      file.on('error',  reject)
-    }).on('error', reject)
-  })
-}
-
-async function runDownload (downloadUrl, version) {
-  const dest = path.join(os.tmpdir(), `Draftflow-${version}.dmg`)
-  const send = (ch, data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(ch, data)
-  }
-  try {
-    await downloadFile(downloadUrl, dest, pct => send('download-progress', pct))
-    await shell.openPath(dest)   // mounts the DMG — Finder opens automatically
-    send('download-done')
-  } catch (err) {
-    send('download-error', err.message)
-  }
-}
 
 // ── IPC handlers ──────────────────────────────────────────────────────────────
 
@@ -764,9 +751,13 @@ ipcMain.handle('open-plugins-dir', async () => {
   await shell.openPath(dir)
 })
 ipcMain.handle('get-version',    async ()             => app.getVersion())
-ipcMain.handle('start-download', async (_e, { downloadUrl, version }) => {
-  runDownload(downloadUrl, version)   // fire-and-forget; progress via events
+ipcMain.handle('start-download', async () => {
+  autoUpdater.downloadUpdate().catch(e => dbg('downloadUpdate error:', e.message))
   return { ok: true }
+})
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall()
 })
 
 ipcMain.handle('get-diagnostics', async () => {
