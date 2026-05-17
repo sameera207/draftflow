@@ -80,7 +80,42 @@ When `settings.anthropic.apiKey` is set, the renderer calls `window.api.suggestS
 
 ### Settings
 
-Persisted as JSON at `~/Library/Application Support/Draftflow/settings.json` (Electron `userData`). Key fields: `skillPaths`, `recentFiles`, `windowBounds`, `anthropic.apiKey`.
+Persisted as JSON at `~/Library/Application Support/Draftflow/settings.json` (Electron `userData`). Key fields: `skillPaths`, `recentFiles`, `windowBounds`, `anthropic.apiKey`, `pluginDevPaths`.
+
+## Plugins
+
+### Plugin system overview
+
+- **`src/plugin-loader.js`** — loads plugins at startup from `~/.draftflow/plugins/` (installed) and from `settings.pluginDevPaths` (dev, in-place, no copy).
+- **`src/plugin-api.js`** — creates the scoped `api` object injected into each plugin's `initMain`.
+- **`preload.js`** (top section) — renderer-side plugin loading; runs `initRenderer` for each plugin that declares one.
+- Plugin IPC handlers live in `main.js` under the `── Plugin IPC ──` section.
+
+### Bundled example plugin
+
+`plugins/df-plugin-tokencount-example/` — a minimal reference plugin that ships with the app. Always keep this working; it's the reference for plugin authors.
+
+### External plugins (developed separately)
+
+External plugins live outside this repo. To work on one from this Claude Code session, read and edit files directly by path. The dev loop is:
+
+1. Edit the plugin files (paths below).
+2. In Draftflow: **Settings → Plugins → Reload & Restart**.
+3. The app reloads and picks up your changes from disk — no install step.
+
+**Known external plugins:**
+
+| Plugin | Directory | CLAUDE.md |
+|---|---|---|
+| Voice Mode | `/Users/sameera/workspace/draftflow-project/draftflow-voice-plugin/` | `…/draftflow-voice-plugin/CLAUDE.md` |
+
+Read the plugin's own `CLAUDE.md` for its API usage, file roles, and constraints before making changes.
+
+### Adding a new IPC handler for a plugin
+
+1. Add `ipcMain.handle('plugin:<id>:<name>', ...)` in `main.js`.
+2. Expose it in `preload.js` via `api.ipc.invoke('<name>', ...)` — plugins call this automatically namespaced.
+3. Declare any new permissions in the plugin's `plugin.json` and add them to `KNOWN_PERMISSIONS` in `src/plugin-loader.js` if new.
 
 ### Scratch pad
 

@@ -6,28 +6,52 @@ const fs_m   = require('fs')
 
 // ── Renderer-side plugin system ───────────────────────────────────────────────
 
-// Plugins loaded for renderer phase (initRenderer)
+function _loadRendererPlugin(pluginPath, dirName) {
+  const manifestPath = path_m.join(pluginPath, 'plugin.json')
+  if (!fs_m.existsSync(manifestPath)) return null
+  let manifest
+  try { manifest = JSON.parse(fs_m.readFileSync(manifestPath, 'utf8')) } catch { return null }
+  if (!manifest.id) return null
+  if (dirName && manifest.id !== dirName) return null
+  const entryFile = path_m.join(pluginPath, manifest.main ?? 'index.js')
+  if (!fs_m.existsSync(entryFile)) return null
+  let pluginExport
+  try { pluginExport = require(entryFile) } catch { return null }
+  const initRenderer = typeof pluginExport === 'function' ? pluginExport
+    : (pluginExport && typeof pluginExport.initRenderer === 'function' ? pluginExport.initRenderer : null)
+  if (!initRenderer) return null
+  return { id: manifest.id, manifest, initRenderer }
+}
+
+// Plugins loaded for renderer phase (initRenderer) — installed + dev paths
 const _preloadPlugins = (() => {
-  const pluginDir = path_m.join(os_m.homedir(), '.draftflow', 'plugins')
-  if (!fs_m.existsSync(pluginDir)) return []
   const result = []
+  const seenIds = new Set()
+
+  // Installed plugins
+  const pluginDir = path_m.join(os_m.homedir(), '.draftflow', 'plugins')
   try {
-    const entries = fs_m.readdirSync(pluginDir, { withFileTypes: true }).filter(e => e.isDirectory())
-    for (const entry of entries) {
-      const manifestPath = path_m.join(pluginDir, entry.name, 'plugin.json')
-      if (!fs_m.existsSync(manifestPath)) continue
-      let manifest
-      try { manifest = JSON.parse(fs_m.readFileSync(manifestPath, 'utf8')) } catch { continue }
-      if (!manifest.id || manifest.id !== entry.name) continue
-      const entryFile = path_m.join(pluginDir, entry.name, manifest.main ?? 'index.js')
-      if (!fs_m.existsSync(entryFile)) continue
-      let pluginExport
-      try { pluginExport = require(entryFile) } catch { continue }
-      const initRenderer = typeof pluginExport === 'function' ? pluginExport
-        : (pluginExport && typeof pluginExport.initRenderer === 'function' ? pluginExport.initRenderer : null)
-      if (initRenderer) result.push({ id: manifest.id, manifest, initRenderer })
+    if (fs_m.existsSync(pluginDir)) {
+      for (const entry of fs_m.readdirSync(pluginDir, { withFileTypes: true }).filter(e => e.isDirectory())) {
+        const plugin = _loadRendererPlugin(path_m.join(pluginDir, entry.name), entry.name)
+        if (plugin && !seenIds.has(plugin.id)) { result.push(plugin); seenIds.add(plugin.id) }
+      }
     }
   } catch {}
+
+  // Dev plugins from settings
+  try {
+    const settingsFile = path_m.join(os_m.homedir(), 'Library', 'Application Support', 'Draftflow', 'settings.json')
+    if (fs_m.existsSync(settingsFile)) {
+      const s = JSON.parse(fs_m.readFileSync(settingsFile, 'utf8'))
+      for (const devPath of (s.pluginDevPaths || [])) {
+        const expanded = devPath.startsWith('~/') ? path_m.join(os_m.homedir(), devPath.slice(2)) : devPath
+        const plugin = _loadRendererPlugin(expanded, null)
+        if (plugin && !seenIds.has(plugin.id)) { result.push(plugin); seenIds.add(plugin.id) }
+      }
+    }
+  } catch {}
+
   return result
 })()
 
@@ -423,6 +447,10 @@ contextBridge.exposeInMainWorld('api', {
     settingsGet:   (pluginId, key)        => ipcRenderer.invoke('plugin:settings-get', pluginId, key),
     settingsSet:   (pluginId, key, value) => ipcRenderer.invoke('plugin:settings-set', pluginId, key, value),
     initRenderers: ()                     => ipcRenderer.invoke('plugin:init-renderers'),
+    install:       (srcPath)              => ipcRenderer.invoke('plugin:install', srcPath),
+    uninstall:     (pluginId)             => ipcRenderer.invoke('plugin:uninstall', pluginId),
+    reload:        ()                     => ipcRenderer.invoke('plugin:reload'),
+    browseFolder:  ()                     => ipcRenderer.invoke('plugin:browse-folder'),
 
     // Called by initPlugins() for each plugin with an initRenderer.
     // Runs initRenderer in the preload context so DOM APIs work.

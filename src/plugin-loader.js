@@ -16,82 +16,105 @@ const KNOWN_CONTRIBUTES = new Set([
   'pluginToolbar', 'statusBar', 'commands',
 ])
 
-async function loadPlugins() {
+function expandPath(p) {
+  return p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : p
+}
+
+async function loadPlugins(options = {}) {
+  const { devPaths = [] } = options
   const pluginDir = path.join(os.homedir(), '.draftflow', 'plugins')
 
-  if (!fs.existsSync(pluginDir)) {
-    console.log('[plugins] directory not found:', pluginDir)
-    return []
-  }
-
-  const entries = fs.readdirSync(pluginDir, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-
   const loaded = []
+  const loadedIds = new Set()
 
-  for (const entry of entries) {
-    const pluginPath   = path.join(pluginDir, entry.name)
-    const manifestPath = path.join(pluginPath, 'plugin.json')
-
-    if (!fs.existsSync(manifestPath)) {
-      console.warn(`[plugins] skipping "${entry.name}": no plugin.json`)
-      continue
-    }
-
-    let manifest
-    try {
-      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-    } catch {
-      console.warn(`[plugins] skipping "${entry.name}": plugin.json is not valid JSON`)
-      continue
-    }
-
-    const validation = validateManifest(manifest, entry.name)
-    if (!validation.ok) {
-      console.warn(`[plugins] skipping "${entry.name}": ${validation.error}`)
-      continue
-    }
-
-    const entryFile = path.join(pluginPath, manifest.main ?? 'index.js')
-
-    if (!fs.existsSync(entryFile)) {
-      console.warn(`[plugins] skipping "${entry.name}": entry file not found: ${entryFile}`)
-      continue
-    }
-
-    let pluginExport
-    try {
-      pluginExport = require(entryFile)
-    } catch (e) {
-      console.error(`[plugins] failed to require "${entry.name}":`, e.message)
-      continue
-    }
-
-    const normalised = normaliseExport(pluginExport)
-    const api        = createScopedAPI(manifest, manifest.id)
-
-    if (normalised.initMain) {
-      try {
-        await normalised.initMain(api)
-      } catch (e) {
-        console.error(`[plugins] initMain failed for "${manifest.id}":`, e.message)
-        continue
+  // Installed plugins from ~/.draftflow/plugins/
+  if (fs.existsSync(pluginDir)) {
+    for (const entry of fs.readdirSync(pluginDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const plugin = await _loadPlugin(path.join(pluginDir, entry.name), entry.name, false)
+      if (plugin && !loadedIds.has(plugin.id)) {
+        loaded.push(plugin)
+        loadedIds.add(plugin.id)
       }
     }
+  }
 
-    loaded.push({
-      id:           manifest.id,
-      name:         manifest.name,
-      version:      manifest.version,
-      manifest,
-      initRenderer: normalised.initRenderer ?? null,
-      api,
-    })
-
-    console.log(`[plugins] loaded: ${manifest.name} v${manifest.version}`)
+  // Dev plugins loaded in-place from configured paths (id=dirname check relaxed)
+  for (const devPath of devPaths) {
+    const expanded = expandPath(devPath)
+    if (!fs.existsSync(expanded)) {
+      console.warn(`[plugins] dev path not found: ${expanded}`)
+      continue
+    }
+    const plugin = await _loadPlugin(expanded, null, true)
+    if (plugin && !loadedIds.has(plugin.id)) {
+      loaded.push(plugin)
+      loadedIds.add(plugin.id)
+    }
   }
 
   return loaded
+}
+
+async function _loadPlugin(pluginPath, dirName, isDev) {
+  const manifestPath = path.join(pluginPath, 'plugin.json')
+  if (!fs.existsSync(manifestPath)) {
+    if (dirName) console.warn(`[plugins] skipping "${dirName}": no plugin.json`)
+    return null
+  }
+
+  let manifest
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  } catch {
+    console.warn(`[plugins] skipping "${dirName ?? pluginPath}": plugin.json is not valid JSON`)
+    return null
+  }
+
+  const validation = validateManifest(manifest, dirName)
+  if (!validation.ok) {
+    console.warn(`[plugins] skipping "${dirName ?? manifest.id ?? pluginPath}": ${validation.error}`)
+    return null
+  }
+
+  const entryFile = path.join(pluginPath, manifest.main ?? 'index.js')
+  if (!fs.existsSync(entryFile)) {
+    console.warn(`[plugins] skipping "${manifest.id}": entry file not found: ${entryFile}`)
+    return null
+  }
+
+  let pluginExport
+  try {
+    pluginExport = require(entryFile)
+  } catch (e) {
+    console.error(`[plugins] failed to require "${manifest.id}":`, e.message)
+    return null
+  }
+
+  const normalised = normaliseExport(pluginExport)
+  const api        = createScopedAPI(manifest, manifest.id)
+
+  if (normalised.initMain) {
+    try {
+      await normalised.initMain(api)
+    } catch (e) {
+      console.error(`[plugins] initMain failed for "${manifest.id}":`, e.message)
+      return null
+    }
+  }
+
+  console.log(`[plugins] loaded${isDev ? ' (dev)' : ''}: ${manifest.name} v${manifest.version}`)
+
+  return {
+    id:           manifest.id,
+    name:         manifest.name,
+    version:      manifest.version,
+    isDev,
+    pluginPath,
+    manifest,
+    initRenderer: normalised.initRenderer ?? null,
+    api,
+  }
 }
 
 function normaliseExport(exp) {
@@ -107,6 +130,7 @@ function normaliseExport(exp) {
   return { initMain: null, initRenderer: null }
 }
 
+// dirName=null means skip the id-matches-dirname check (used for dev paths)
 function validateManifest(manifest, dirName) {
   if (!manifest.id || typeof manifest.id !== 'string') {
     return { ok: false, error: 'manifest.id must be a non-empty string' }
@@ -114,7 +138,7 @@ function validateManifest(manifest, dirName) {
   if (/[\s/\\]/.test(manifest.id)) {
     return { ok: false, error: 'manifest.id must contain no spaces, slashes, or backslashes' }
   }
-  if (manifest.id !== dirName) {
+  if (dirName !== null && manifest.id !== dirName) {
     return { ok: false, error: `manifest.id "${manifest.id}" must match directory name "${dirName}"` }
   }
   if (!manifest.name || typeof manifest.name !== 'string') {

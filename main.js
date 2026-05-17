@@ -87,8 +87,9 @@ function loadSettings () {
       settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'))
     }
   } catch (_) { settings = {} }
-  if (!settings.skillPaths)  settings.skillPaths  = [{ path: '~/.claude', tag: 'claude' }]
-  if (!settings.recentFiles) settings.recentFiles = []
+  if (!settings.skillPaths)     settings.skillPaths     = [{ path: '~/.claude', tag: 'claude' }]
+  if (!settings.recentFiles)    settings.recentFiles    = []
+  if (!settings.pluginDevPaths) settings.pluginDevPaths = []
   return settings
 }
 
@@ -311,8 +312,9 @@ function createWindow () {
 }
 
 app.whenReady().then(async () => {
+  loadSettings()
   try { installBundledPlugins() } catch (e) { dbg('installBundledPlugins failed:', e.message) }
-  loadedPlugins = await loadPlugins()
+  loadedPlugins = await loadPlugins({ devPaths: settings.pluginDevPaths || [] })
   let updatedIntegrationFiles = []
   try { updatedIntegrationFiles = installIntegration() || [] } catch (e) { dbg('installIntegration failed:', e.message) }
   createWindow()
@@ -797,8 +799,62 @@ function writePluginSettings(data) {
 }
 
 ipcMain.handle('plugin:list', () =>
-  loadedPlugins.map(p => ({ id: p.id, name: p.name, version: p.version }))
+  loadedPlugins.map(p => ({ id: p.id, name: p.name, version: p.version, isDev: p.isDev ?? false }))
 )
+
+ipcMain.handle('plugin:install', async (_e, srcPath) => {
+  const manifestPath = path.join(srcPath, 'plugin.json')
+  if (!fs.existsSync(manifestPath)) return { ok: false, error: 'No plugin.json found in the selected folder.' }
+
+  let manifest
+  try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) }
+  catch { return { ok: false, error: 'plugin.json is not valid JSON.' } }
+
+  if (!manifest.id || typeof manifest.id !== 'string' || /[\s/\\]/.test(manifest.id)) {
+    return { ok: false, error: 'plugin.json has an invalid or missing "id" field.' }
+  }
+  if (!manifest.name || !/^\d+\.\d+\.\d+$/.test(manifest.version)) {
+    return { ok: false, error: 'plugin.json is missing required "name" or "version" fields.' }
+  }
+
+  const destDir = path.join(os.homedir(), '.draftflow', 'plugins', manifest.id)
+  try {
+    fs.mkdirSync(destDir, { recursive: true })
+    for (const file of fs.readdirSync(srcPath)) {
+      const src  = path.join(srcPath, file)
+      const dest = path.join(destDir, file)
+      if (fs.statSync(src).isFile()) fs.copyFileSync(src, dest)
+    }
+  } catch (e) {
+    return { ok: false, error: `Failed to copy plugin: ${e.message}` }
+  }
+
+  return { ok: true, pluginId: manifest.id, pluginName: manifest.name }
+})
+
+ipcMain.handle('plugin:uninstall', (_e, pluginId) => {
+  if (!pluginId || /[/\\]/.test(pluginId)) return { ok: false, error: 'Invalid plugin id.' }
+  const destDir = path.join(os.homedir(), '.draftflow', 'plugins', pluginId)
+  if (!fs.existsSync(destDir)) return { ok: false, error: 'Plugin not found.' }
+  try {
+    fs.rmSync(destDir, { recursive: true, force: true })
+  } catch (e) {
+    return { ok: false, error: `Failed to remove plugin: ${e.message}` }
+  }
+  return { ok: true }
+})
+
+ipcMain.handle('plugin:reload', async () => {
+  loadedPlugins = await loadPlugins({ devPaths: settings.pluginDevPaths || [] })
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.reload()
+  }
+})
+
+ipcMain.handle('plugin:browse-folder', async () => {
+  const r = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+  return r.canceled ? null : r.filePaths[0]
+})
 
 ipcMain.handle('plugin:settings-get', (_e, pluginId, key) => {
   const data = readPluginSettings()
