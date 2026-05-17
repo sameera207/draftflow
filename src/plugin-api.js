@@ -14,7 +14,7 @@ function _writePluginSettings(data) {
   fs.writeFileSync(PLUGIN_SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf8')
 }
 
-const VALID_EVENTS = new Set(['file:opened', 'file:saved', 'send:triggered', 'theme:changed', 'app:ready'])
+const VALID_EVENTS = new Set(['file:opened', 'file:saved', 'send:triggered', 'theme:changed', 'app:ready', 'app:modeChanged'])
 
 class PluginAPI {
 
@@ -105,6 +105,20 @@ class PluginAPI {
       throw new Error('fs.write permission not declared')
     },
   }
+
+  bridge = {
+    watch(handler)  { throw new Error('bridge.watch permission not declared') },
+    unwatch()       {},
+    read()          { throw new Error('bridge.watch permission not declared') },
+    send(content)   { throw new Error('bridge.send permission not declared') },
+    clear()         { throw new Error('bridge.send permission not declared') },
+  }
+
+  app = {
+    setMode(name)  { throw new Error('app.setMode permission not declared') },
+    exitMode(name) { throw new Error('app.setMode permission not declared') },
+    getMode()      { return 'normal' },
+  }
 }
 
 function createScopedAPI(manifest, pluginId) {
@@ -179,11 +193,75 @@ function createScopedAPI(manifest, pluginId) {
     },
   }
 
+  // Wire bridge (main-process side uses fs directly)
+  if (perms.has('bridge.watch') || perms.has('bridge.send')) {
+    const BRIDGE_DIR      = path.join(os.homedir(), '.claude', 'editor-bridge')
+    const BRIDGE_REQUEST  = path.join(BRIDGE_DIR, 'request.md')
+    const BRIDGE_RESPONSE = path.join(BRIDGE_DIR, 'response.md')
+    let watcher = null
+    let pollInterval = null
+
+    api.bridge = {}
+
+    if (perms.has('bridge.watch')) {
+      api.bridge.watch = (handler) => {
+        const startWatcher = () => {
+          if (!fs.existsSync(BRIDGE_RESPONSE)) return
+          watcher = fs.watch(BRIDGE_RESPONSE, () => {
+            try { handler(fs.readFileSync(BRIDGE_RESPONSE, 'utf8')) } catch (_) {}
+          })
+        }
+        if (watcher) { watcher.close(); watcher = null }
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+        if (fs.existsSync(BRIDGE_RESPONSE)) {
+          startWatcher()
+        } else {
+          pollInterval = setInterval(() => {
+            if (fs.existsSync(BRIDGE_RESPONSE)) {
+              clearInterval(pollInterval); pollInterval = null
+              startWatcher()
+            }
+          }, 2000)
+        }
+      }
+      api.bridge.unwatch = () => {
+        if (watcher) { watcher.close(); watcher = null }
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+      }
+      api.bridge.read = () => {
+        if (!fs.existsSync(BRIDGE_RESPONSE)) return ''
+        return fs.readFileSync(BRIDGE_RESPONSE, 'utf8')
+      }
+    }
+
+    if (perms.has('bridge.send')) {
+      api.bridge.send = (content) => {
+        fs.mkdirSync(BRIDGE_DIR, { recursive: true })
+        fs.writeFileSync(BRIDGE_REQUEST, content.trimEnd() + '\n<!-- df:ready -->\n', 'utf8')
+      }
+      api.bridge.clear = () => {
+        fs.mkdirSync(BRIDGE_DIR, { recursive: true })
+        fs.writeFileSync(BRIDGE_RESPONSE, '', 'utf8')
+      }
+    }
+  }
+
+  // Wire app (main process — no DOM; getMode always returns 'normal')
+  if (perms.has('app.setMode')) {
+    api.app = {
+      setMode(name)  { if (name !== 'voice') throw new Error(`app.setMode: unknown mode "${name}"`) },
+      exitMode(name) { if (name !== 'voice') throw new Error(`app.exitMode: not currently in mode "${name}"`) },
+      getMode()      { return 'normal' },
+    }
+  }
+
   // Tier 3 — delete unpermitted
   if (!perms.has('network.fetch'))                      delete api.network
   if (!perms.has('fs.read') && !perms.has('fs.write')) {
     delete api.fs
   }
+  if (!perms.has('bridge.watch') && !perms.has('bridge.send')) delete api.bridge
+  if (!perms.has('app.setMode'))                                delete api.app
 
   // Tier 2 — UI
   if (!cont.pluginToolbar)        delete api.ui.getPluginToolbarMount

@@ -50,7 +50,24 @@ try:
     if last_text:
         bridge = pathlib.Path.home() / ".claude" / "editor-bridge"
         bridge.mkdir(parents=True, exist_ok=True)
+
+        # Read previous response to detect whether the LLM has actually run yet.
+        # The Stop hook fires twice per voice turn: once when the hook pipeline
+        # finishes (transcript still has the OLD response) and once after the LLM
+        # responds (transcript has the NEW response). Only write response.md on
+        # the second firing, when the content is genuinely new.
+        prev = ""
+        try:
+            prev = (bridge / "last-response.md").read_text()
+        except Exception:
+            pass
+
         (bridge / "last-response.md").write_text(last_text)
+
+        voice_flag = bridge / "voice-mode-active"
+        if voice_flag.exists() and last_text != prev:
+            (bridge / "response.md").write_text(last_text)
+            voice_flag.unlink()
 
 except Exception:
     pass

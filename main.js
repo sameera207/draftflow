@@ -587,8 +587,15 @@ function installFile (src, dest) {
 }
 
 function installBundledPlugins () {
-  const bundledDir = path.join(__dirname, 'plugins')
-  if (!fs.existsSync(bundledDir)) return
+  // In the packaged app, plugins are in asarUnpack — access via the real filesystem path.
+  // In dev mode, __dirname is the project root and works directly.
+  const bundledDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'plugins')
+    : path.join(__dirname, 'plugins')
+  if (!fs.existsSync(bundledDir)) {
+    dbg('installBundledPlugins: plugins dir not found at', bundledDir)
+    return
+  }
 
   const destDir = path.join(os.homedir(), '.draftflow', 'plugins')
   fs.mkdirSync(destDir, { recursive: true })
@@ -813,6 +820,60 @@ ipcMain.handle('plugin:init-renderers', () =>
 ipcMain.handle('plugin:editor-insert', (_e, text) => {
   const win = BrowserWindow.getFocusedWindow()
   if (win) win.webContents.send('plugin:do-editor-insert', text)
+})
+
+// ── Bridge IPC ────────────────────────────────────────────────────────────────
+
+const BRIDGE_DIR      = path.join(os.homedir(), '.claude', 'editor-bridge')
+const BRIDGE_REQUEST  = path.join(BRIDGE_DIR, 'request.md')
+const BRIDGE_RESPONSE = path.join(BRIDGE_DIR, 'response.md')
+
+ipcMain.handle('bridge:send', async (_e, content) => {
+  fs.mkdirSync(BRIDGE_DIR, { recursive: true })
+  fs.writeFileSync(BRIDGE_REQUEST, content.trimEnd() + '\n<!-- df:ready -->\n', 'utf8')
+})
+
+ipcMain.handle('bridge:read', (_e) => {
+  if (!fs.existsSync(BRIDGE_RESPONSE)) return ''
+  return fs.readFileSync(BRIDGE_RESPONSE, 'utf8')
+})
+
+ipcMain.handle('bridge:clear', async (_e) => {
+  fs.mkdirSync(BRIDGE_DIR, { recursive: true })
+  fs.writeFileSync(BRIDGE_RESPONSE, '', 'utf8')
+})
+
+let bridgeWatcher = null
+ipcMain.handle('bridge:watch', (_e) => {
+  if (bridgeWatcher) { bridgeWatcher.close(); bridgeWatcher = null }
+
+  const startWatcher = () => {
+    if (!fs.existsSync(BRIDGE_RESPONSE)) return
+    bridgeWatcher = fs.watch(BRIDGE_RESPONSE, () => {
+      const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : BrowserWindow.getFocusedWindow()
+      if (win) {
+        try {
+          const content = fs.readFileSync(BRIDGE_RESPONSE, 'utf8')
+          win.webContents.send('bridge:response-changed', content)
+        } catch (_) {}
+      }
+    })
+  }
+
+  if (fs.existsSync(BRIDGE_RESPONSE)) {
+    startWatcher()
+  } else {
+    const poll = setInterval(() => {
+      if (fs.existsSync(BRIDGE_RESPONSE)) {
+        clearInterval(poll)
+        startWatcher()
+      }
+    }, 2000)
+  }
+})
+
+ipcMain.handle('bridge:unwatch', (_e) => {
+  if (bridgeWatcher) { bridgeWatcher.close(); bridgeWatcher = null }
 })
 
 ipcMain.handle('submit-feedback', async (_e, payload) => {

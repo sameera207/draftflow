@@ -110,8 +110,28 @@ if after.lower() in ("p", "-p"):
     sys.exit(0)
 
 
-# Plain /df [content]: write request.md, open Draftflow, poll in-hook.
+# /df with no args + voice mode has pre-written request.md: inject transcript directly.
 req = bridge / "request.md"
+if not after and req.exists():
+    req_text = req.read_text()
+    if "<!-- df:ready -->" in req_text:
+        transcript = req_text.replace("<!-- df:ready -->", "").strip()
+        req.write_text("")  # clear so it won't re-trigger on next /df
+        if transcript:
+            # Set flag so the Stop hook writes response.md only for this voice turn
+            (bridge / "voice-mode-active").write_text("")
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": (
+                        f"SYSTEM (df hook): The user sent this via voice mode in Draftflow. "
+                        f"Use it as their message:\n\n{transcript}"
+                    )
+                }
+            }))
+            sys.exit(0)
+
+# Plain /df [content]: write request.md, open Draftflow, poll in-hook.
 req.write_text(after)
 
 result = subprocess.run(

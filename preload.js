@@ -45,7 +45,7 @@ ipcRenderer.on('plugin:event', (_e, name, payload) => {
   }
 })
 
-const VALID_EVENTS = new Set(['file:opened', 'file:saved', 'send:triggered', 'theme:changed', 'app:ready'])
+const VALID_EVENTS = new Set(['file:opened', 'file:saved', 'send:triggered', 'theme:changed', 'app:ready', 'app:modeChanged'])
 
 function _sanitizeHtml(content) {
   const allowed = new Set(['P', 'STRONG', 'EM', 'CODE', 'PRE', 'BR'])
@@ -245,6 +245,75 @@ function _createRendererApi(manifest, pluginId) {
         return ipcRenderer.invoke(`plugin:${pluginId}:${name}`, ...args)
       },
     },
+
+    bridge: (() => {
+      let _bridgeHandler = null
+      const _bridgeListener = (_e, content) => {
+        if (_bridgeHandler) _bridgeHandler(content)
+      }
+      return {
+        watch(handler) {
+          console.log('[vm:api] bridge.watch called')
+          if (!perms.has('bridge.watch')) throw new Error('bridge.watch permission not declared')
+          if (_bridgeHandler === null) {
+            ipcRenderer.on('bridge:response-changed', _bridgeListener)
+          }
+          _bridgeHandler = handler
+          return ipcRenderer.invoke('bridge:watch')
+        },
+        unwatch() {
+          console.log('[vm:api] bridge.unwatch called')
+          _bridgeHandler = null
+          return ipcRenderer.invoke('bridge:unwatch')
+        },
+        read() {
+          if (!perms.has('bridge.watch')) throw new Error('bridge.watch permission not declared')
+          return ipcRenderer.invoke('bridge:read')
+        },
+        send(content) {
+          console.log('[vm:api] bridge.send, length:', content?.length)
+          if (!perms.has('bridge.send')) throw new Error('bridge.send permission not declared')
+          return ipcRenderer.invoke('bridge:send', content)
+        },
+        clear() {
+          console.log('[vm:api] bridge.clear')
+          if (!perms.has('bridge.send')) throw new Error('bridge.send permission not declared')
+          return ipcRenderer.invoke('bridge:clear')
+        },
+      }
+    })(),
+
+    app: (() => {
+      return {
+        setMode(name) {
+          console.log('[vm:api] app.setMode', name)
+          if (!perms.has('app.setMode')) throw new Error('app.setMode permission not declared')
+          if (name !== 'voice') throw new Error(`app.setMode: unknown mode "${name}"`)
+          document.documentElement.classList.add('df-mode-voice')
+          const overlay = document.getElementById('voice-mode-overlay')
+          console.log('[vm:api] overlay el found:', !!overlay)
+          if (overlay) overlay.style.display = 'flex'
+          const handlers = _globalEventHandlers.get('app:modeChanged')
+          if (handlers) for (const h of handlers) { try { h({ mode: 'voice' }) } catch (_) {} }
+        },
+        exitMode(name) {
+          console.log('[vm:api] app.exitMode', name)
+          if (!perms.has('app.setMode')) throw new Error('app.setMode permission not declared')
+          if (name !== 'voice') throw new Error(`app.exitMode: not currently in mode "${name}"`)
+          if (!document.documentElement.classList.contains('df-mode-voice')) {
+            throw new Error(`app.exitMode: not currently in mode "${name}"`)
+          }
+          document.documentElement.classList.remove('df-mode-voice')
+          const overlay = document.getElementById('voice-mode-overlay')
+          if (overlay) overlay.style.display = 'none'
+          const handlers = _globalEventHandlers.get('app:modeChanged')
+          if (handlers) for (const h of handlers) { try { h({ mode: 'normal' }) } catch (_) {} }
+        },
+        getMode() {
+          return document.documentElement.classList.contains('df-mode-voice') ? 'voice' : 'normal'
+        },
+      }
+    })(),
   }
 
   // Apply permission scoping
@@ -255,6 +324,20 @@ function _createRendererApi(manifest, pluginId) {
     if (!perms.has('fs.read'))  delete api.fs.read
     if (!perms.has('fs.write')) delete api.fs.write
   }
+  if (!perms.has('bridge.watch') && !perms.has('bridge.send')) {
+    delete api.bridge
+  } else {
+    if (!perms.has('bridge.watch')) {
+      delete api.bridge.watch
+      delete api.bridge.unwatch
+      delete api.bridge.read
+    }
+    if (!perms.has('bridge.send')) {
+      delete api.bridge.send
+      delete api.bridge.clear
+    }
+  }
+  if (!perms.has('app.setMode')) delete api.app
   if (!cont.pluginToolbar)        delete api.ui.getPluginToolbarMount
   if (!cont.statusBar)            delete api.ui.getStatusBarMount
   if (!perms.has('ui.modal'))     delete api.ui.showModal
@@ -323,6 +406,17 @@ contextBridge.exposeInMainWorld('api', {
   getDiagnostics:   ()          => ipcRenderer.invoke('get-diagnostics'),
   submitFeedback:   (payload)   => ipcRenderer.invoke('submit-feedback', payload),
   onShowWhatsNew:   (cb)        => ipcRenderer.on('show-whats-new', (_e, releases) => cb(releases)),
+
+  bridge: {
+    send:    (content) => ipcRenderer.invoke('bridge:send', content),
+    read:    ()        => ipcRenderer.invoke('bridge:read'),
+    clear:   ()        => ipcRenderer.invoke('bridge:clear'),
+    watch:   ()        => ipcRenderer.invoke('bridge:watch'),
+    unwatch: ()        => ipcRenderer.invoke('bridge:unwatch'),
+    onResponseChanged: (handler) => {
+      ipcRenderer.on('bridge:response-changed', (_e, content) => handler(content))
+    },
+  },
 
   plugins: {
     list:          ()                     => ipcRenderer.invoke('plugin:list'),

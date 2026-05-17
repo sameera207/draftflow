@@ -84,6 +84,14 @@
 | `⌘O` | Open file |
 | `⌘N` | New file |
 
+## Voice Mode
+- Hands-free voice conversation loop — listen → transcribe → review → send → wait for Claude Code → display response → listen again
+- OpenAI Whisper API transcription (API key stored locally in `~/.draftflow/settings.json`)
+- Full-screen voice overlay replaces the editor while active; exit any time via Escape, the overlay exit button, or the toolbar button
+- Review and edit the transcript before sending — or discard and re-record
+- Bridge integration — sends prompts directly to Claude Code via the `editor-bridge` protocol; picks up responses automatically when `response.md` changes
+- Activated via the plugin toolbar button or `Cmd+Shift+V`
+
 ## Plugin System
 - First-class plugin architecture — plugins live in `~/.draftflow/plugins/<name>/` and declare capabilities via a `plugin.json` manifest
 - Scoped `PluginAPI` — each plugin receives an API scoped to only the capabilities it declared; unpermitted methods are deleted at load time, not just blocked

@@ -9,6 +9,7 @@ const KNOWN_PERMISSIONS = new Set([
   'network.fetch',
   'fs.read', 'fs.write',
   'ui.pluginToolbar', 'ui.statusBar', 'ui.modal',
+  'bridge.watch', 'bridge.send', 'app.setMode',
 ])
 
 const KNOWN_CONTRIBUTES = new Set([
