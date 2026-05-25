@@ -97,13 +97,18 @@
 - Scoped `PluginAPI` — each plugin receives an API scoped to only the capabilities it declared; unpermitted methods are deleted at load time, not just blocked
 - Two-phase lifecycle — `initMain` runs in the main process before the window opens; `initRenderer` runs in the renderer after DOM is ready
 - Plugin toolbar — a dedicated toolbar strip (between the editor toolbar and content area) with one mount div per loaded plugin; hidden when no plugins are loaded
-- Lifecycle events — plugins subscribe to `file:opened`, `file:saved`, `send:triggered`, `theme:changed`, and `app:ready`
+- Status bar mounts — plugins can also mount UI into the status bar via `contributes.statusBar` and `api.ui.getStatusBarMount()`
+- Lifecycle events — plugins subscribe to `file:opened`, `file:saved`, `send:triggered`, `theme:changed`, `app:ready`, and `app:modeChanged`
 - Namespaced settings — plugins read/write `~/.draftflow/settings.json` with keys automatically namespaced to `<pluginId>.<key>`
-- Permission model — nine granular permissions (`editor.insert`, `editor.read`, `settings.read`, `settings.readwrite`, `network.fetch`, `fs.read`, `fs.write`, `ui.pluginToolbar`, `ui.modal`) with `allowedOrigins` and `allowedPaths` guards
+- Permission model — thirteen granular permissions (`editor.insert`, `editor.read`, `settings.read`, `settings.readwrite`, `network.fetch`, `fs.read`, `fs.write`, `ui.pluginToolbar`, `ui.statusBar`, `ui.modal`, `bridge.watch`, `bridge.send`, `app.setMode`) with `allowedOrigins` (for `network.fetch`) and `allowedPaths` (for `fs.*`) guards
+- Editor read API — `api.editor.getSelection()` and `api.editor.getDocument()` expose the current selection and full document text (requires `editor.read`)
 - HTML modal API — `api.ui.showModal()` renders a Draftflow-managed modal with sanitized content (DOM whitelist: `p`, `strong`, `em`, `code`, `pre`, `br`)
 - Keyboard command registration — plugins register commands with Electron accelerator shortcuts via `api.commands.register()`
+- Generic IPC bridge — `api.ipc.handle(name, fn)` in `initMain` and `api.ipc.invoke(name, ...args)` in `initRenderer` let plugins expose main-process logic to their renderer code; channels are auto-namespaced to `plugin:<id>:<name>`
+- Bridge API — `api.bridge.watch/unwatch/read` (requires `bridge.watch`) and `api.bridge.send/clear` (requires `bridge.send`) give plugins direct access to the Claude Code editor-bridge protocol
+- App mode API — `api.app.setMode(name)`, `api.app.exitMode(name)`, `api.app.getMode()` let plugins drive full-screen overlay modes like voice mode (requires `app.setMode`)
 - Silent failure isolation — a plugin that fails validation, load, or `initMain` is skipped with a console warning; other plugins continue normally
-- `df-hello` smoke-test plugin bundled as a reference implementation
+- `df-plugin-tokencount-example` bundled as a reference implementation
 
 ## Appearance
 - Dark and light theme
