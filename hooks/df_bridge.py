@@ -71,43 +71,39 @@ if after.lower() in ("p", "-p"):
                 last_is_plan = is_plan
                 break
 
-    if not last_text:
-        print(json.dumps({
-            "decision": "block",
-            "reason": "No previous response to review yet."
-        }))
+    if last_text:
+        review_file = bridge / "last-response.md"
+        review_file.write_text(last_text)
+
+        bridge_mode = "plan-edit" if last_is_plan else "review"
+        result = subprocess.run(
+            ["open", "-a", "Draftflow",
+             f"draftflow://?file={quote(str(review_file))}&cwd={quote(str(cwd))}&mode={bridge_mode}"],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print(json.dumps({
+                "decision": "block",
+                "reason": "Could not open Draftflow. Make sure it is installed."
+            }))
+            sys.exit(0)
+
+        content = poll(resp)
+        if content is None:
+            print(json.dumps({"decision": "block", "reason": "Timed out waiting for Draftflow."}))
+        else:
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": (
+                        f"SYSTEM (df hook): The user reviewed/edited the content in Draftflow and sent it back. "
+                        f"Here is the content — use it as the result of the /df p command:\n\n{content}"
+                    )
+                }
+            }))
         sys.exit(0)
-
-    review_file = bridge / "last-response.md"
-    review_file.write_text(last_text)
-
-    bridge_mode = "plan-edit" if last_is_plan else "review"
-    result = subprocess.run(
-        ["open", "-a", "Draftflow",
-         f"draftflow://?file={quote(str(review_file))}&cwd={quote(str(cwd))}&mode={bridge_mode}"],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print(json.dumps({
-            "decision": "block",
-            "reason": "Could not open Draftflow. Make sure it is installed."
-        }))
-        sys.exit(0)
-
-    content = poll(resp)
-    if content is None:
-        print(json.dumps({"decision": "block", "reason": "Timed out waiting for Draftflow."}))
-    else:
-        print(json.dumps({
-            "hookSpecificOutput": {
-                "hookEventName": "UserPromptSubmit",
-                "additionalContext": (
-                    f"SYSTEM (df hook): The user reviewed/edited the content in Draftflow and sent it back. "
-                    f"Here is the content — use it as the result of the /df p command:\n\n{content}"
-                )
-            }
-        }))
-    sys.exit(0)
+    # No prior response — fall through to plain /df with empty content.
+    after = ""
 
 
 # /df with no args + voice mode has pre-written request.md: inject transcript directly.
