@@ -57,10 +57,20 @@ async function loadPlugins(options = {}) {
 }
 
 async function _loadPlugin(pluginPath, dirName, isDev) {
-  const manifestPath = path.join(pluginPath, 'plugin.json')
+  // Support .claude-plugin/plugin.json as an alternative location (for repos that
+  // are also Claude Code plugins and keep Draftflow config in a subdirectory)
+  let manifestPath = path.join(pluginPath, 'plugin.json')
+  let manifestDir  = pluginPath
   if (!fs.existsSync(manifestPath)) {
-    if (dirName) console.warn(`[plugins] skipping "${dirName}": no plugin.json`)
-    return null
+    const altPath = path.join(pluginPath, '.claude-plugin', 'plugin.json')
+    if (fs.existsSync(altPath)) {
+      manifestPath = altPath
+      manifestDir  = path.join(pluginPath, '.claude-plugin')
+    } else {
+      if (dirName) console.warn(`[plugins] skipping "${dirName}": no plugin.json`)
+      else console.warn(`[plugins] skipping dev path "${pluginPath}": no plugin.json`)
+      return null
+    }
   }
 
   let manifest
@@ -77,7 +87,7 @@ async function _loadPlugin(pluginPath, dirName, isDev) {
     return null
   }
 
-  const entryFile = path.join(pluginPath, manifest.main ?? 'index.js')
+  const entryFile = path.join(manifestDir, manifest.main ?? 'index.js')
   if (!fs.existsSync(entryFile)) {
     console.warn(`[plugins] skipping "${manifest.id}": entry file not found: ${entryFile}`)
     return null

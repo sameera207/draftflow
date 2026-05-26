@@ -108,6 +108,7 @@ External plugins live outside this repo. To work on one from this Claude Code se
 | Plugin | Directory | CLAUDE.md |
 |---|---|---|
 | Voice Mode | `/Users/sameera/workspace/draftflow-project/draftflow-voice-plugin/` | `…/draftflow-voice-plugin/CLAUDE.md` |
+| Mermaid Diagrams | `/Users/sameera/workspace/draftflow-project/draftflow-mermaid-plugin/` | — |
 
 Read the plugin's own `CLAUDE.md` for its API usage, file roles, and constraints before making changes.
 
