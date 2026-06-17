@@ -14,7 +14,7 @@
   {
     "tag": "/df",
     "title": "Claude Code bridge",
-    "description": "Open files directly from Claude Code, edit them, and send the result back with one click.",
+    "description": "Type /df to pull Claude's last response into Draftflow. Edit it, then send it back in one click. Use /df n for a blank draft.",
     "image": null
   },
   {
