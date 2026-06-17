@@ -15,17 +15,18 @@
 - Window bounds (size and position) persisted across sessions
 
 ## Claude Code Bridge
-- `/df` command — open a draft in Draftflow directly from Claude Code, edit it, and send it back in one click
-- `/df p` — open Claude's previous response (e.g. a plan) in the preview pane for review; type notes in the editor and send only the notes back; the plan is never re-sent
-- Plan-edit mode — when `/df p` targets a plan-mode response, the plan loads into the preview but the editor stays fully writable for annotations
-- "Send back" button — writes the editor content to the shared bridge file so Claude Code can read it; the hook picks it up automatically without the user needing to say "done"
-- "Send to Claude" button — copies editor content to clipboard, ready to paste into Claude Code
-- In-hook polling — the `df_bridge.py` hook polls for the response inside the hook process; for `/df p` (review mode), the edited content is injected directly into Claude's context via `additionalContext` so Claude acts on it immediately without any extra step
-- Review mode send-back — includes both the original review content and any notes typed in the editor, so Claude sees the full picture
+- `/df` — pulls Claude's last response into Draftflow for review or editing; if the response was a plan, it loads in plan-edit mode
+- `/df n` — opens a new empty draft
+- `/df [content]` — opens Draftflow pre-filled with the given text
+- Plan-edit mode — when the last response was a plan, it loads into the editor for direct annotation or rewriting
+- "Send back" button — writes the editor content to the shared bridge file; Claude Code picks it up immediately via `additionalContext`, no extra "done" step needed
+- Send-back echo — the content sent back appears quoted in the Claude Code terminal so the user can see what was submitted
+- "Send to Claude" button — copies editor content to clipboard, ready to paste into any Claude session
+- Plan mode badge — shows whether Claude Code is currently in plan or normal mode; visible whenever the send back button is active
+- Mode switching — click the badge to toggle plan/normal mode before sending back; the hook includes the mode switch instruction in Claude's context
 
 ## Background Hooks (auto-installed)
-- `df_bridge.py` (`UserPromptSubmit`) — intercepts `/df` commands in Claude Code; opens Draftflow, polls for the response, and injects the edited content back into the Claude Code session
-- `save_last_response.py` (`Stop`) — runs after every Claude Code session stops; saves the last assistant response (including plan-mode output) to `~/.claude/editor-bridge/last-response.md` so `/df p` always has fresh content
+- `df_bridge.py` (`UserPromptSubmit`) — intercepts `/df` commands in Claude Code; opens Draftflow, polls for the response, and injects the edited content back into the session via `additionalContext`
 - Both hooks are auto-installed (and kept up to date) every time Draftflow launches — no manual setup required after the first run
 
 ## Skill & Agent Autocomplete

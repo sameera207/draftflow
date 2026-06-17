@@ -18,6 +18,12 @@
     "image": null
   },
   {
+    "tag": "plan",
+    "title": "Plan mode switching",
+    "description": "Draftflow shows Claude Code's current mode — plan or normal. Click to switch before sending back, without leaving the editor.",
+    "image": null
+  },
+  {
     "tag": "⌘C",
     "title": "Send to Claude",
     "description": "Copy your draft as a ready-to-paste prompt for Claude Code. No browser tabs, no friction.",

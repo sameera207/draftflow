@@ -10,15 +10,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.4.5] - 2026-06-18
 
 ### Added
-- **Send-back echo — what you type in Draftflow now appears quoted in the Claude Code terminal before Claude responds**
-- **Plan mode badge — Draftflow shows whether Claude Code is in plan or normal mode, and lets you switch before sending back**
+- **Send-back echo — what you type in Draftflow appears quoted in the Claude Code terminal before Claude responds**
+- **Plan mode badge — shows whether Claude Code is in plan or normal mode; visible whenever the send back button is active**
+- **Mode switching — click the badge to toggle between plan and normal mode before sending back**
 
 ### Changed
 - **`/df` now opens the last Claude response for review/editing; `/df n` opens a new empty draft**
-- Plan mode badge uses green to match the app's existing accent palette
 
 ### Fixed
-- Homebrew cask upgrade failed with 404 — DMG was uploaded with arch suffix (`-arm64`); now also uploaded without suffix to match the cask URL
+- Homebrew cask upgrade failed with 404 — DMG now uploaded without arch suffix to match the cask URL
 
 ---
 
