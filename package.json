@@ -1,6 +1,6 @@
 {
   "name": "draftflow",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Markdown editor for Claude Code workflows",
   "main": "main.js",
   "scripts": {
@@ -20,7 +20,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
     "electron-updater": "^6.8.3",
-    "marked": "^18.0.3"
+    "marked": "^18.0.3",
+    "mermaid": "^10.9.6"
   },
   "build": {
     "appId": "dev.draftflow.app",

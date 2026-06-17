@@ -2407,6 +2407,8 @@ function initMermaid () {
 
 async function renderMermaidBlocks () {
   if (typeof mermaid === 'undefined') return
+  // Clean up any orphaned mermaid temp containers from previous failed renders
+  document.querySelectorAll('[id^="dmermaid-diagram-"]').forEach(el => el.remove())
   const pane = document.getElementById('preview-pane')
   const blocks = pane.querySelectorAll('pre code.language-mermaid')
   for (const code of blocks) {
@@ -2417,9 +2419,18 @@ async function renderMermaidBlocks () {
     wrapper.className = 'mermaid-diagram'
     try {
       const { svg } = await mermaid.render(id, definition)
-      wrapper.innerHTML = svg
+      // Mermaid v10 renders error SVGs (bomb icons) instead of throwing — detect and suppress them
+      if (svg && (svg.includes('class="error-icon"') || svg.includes('Syntax error'))) {
+        wrapper.innerHTML = '<div class="mermaid-error">⚠ Invalid Mermaid syntax</div>'
+      } else {
+        wrapper.innerHTML = svg
+      }
     } catch (_) {
       wrapper.innerHTML = '<div class="mermaid-error">⚠ Invalid Mermaid syntax</div>'
+    } finally {
+      // Remove the temp container mermaid appends to <body> during rendering
+      const tempEl = document.getElementById(`d${id}`)
+      if (tempEl) tempEl.remove()
     }
     pre.replaceWith(wrapper)
   }
