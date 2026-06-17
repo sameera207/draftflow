@@ -132,4 +132,15 @@ Uses `@anthropic-ai/tokenizer` if installed; falls back to `length / 4` estimate
 
 ## Distribution
 
-Built with `electron-builder`. The Homebrew cask lives at `sameera207/homebrew-draftflow`. After building, upload the DMG to the GitHub release as `Draftflow-{version}.dmg` (without arch suffix) to match the cask URL. The repo must be public for Homebrew downloads to work.
+### ALWAYS release via GitHub Actions — never `npm run dist`
+
+`npm run dist` builds locally without notarization. Locally-built DMGs trigger a Gatekeeper warning on first launch and are not suitable for distribution.
+
+**To cut a release:**
+1. Go to **Actions → Release → Run workflow** on GitHub
+2. Choose the bump type (`patch` / `minor` / `major`)
+3. The workflow handles everything: signs, notarizes, renames the DMG, creates the GitHub release, and updates the Homebrew cask
+
+`npm run dist` and `npm run install-local` are for **local development only** (testing the app on your own machine before releasing).
+
+The Homebrew cask lives at `sameera207/homebrew-draftflow`. The workflow updates it automatically. The repo must be public for Homebrew downloads to work.
