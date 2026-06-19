@@ -7,10 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.1] - 2026-06-19
+
+### Fixed
+- **Send-back echo was broken — a string expression bug caused the `>` prefix to appear as a mid-line separator instead of a per-line prefix**
+
+---
+
 ## [0.5.0] - 2026-06-19
 
 ### Added
-- **Send-back echo — what you type in Draftflow appears quoted in the Claude Code terminal before Claude responds** *(fix shipping in 0.5.1)*
+- **Send-back echo — what you type in Draftflow appears quoted in the Claude Code terminal before Claude responds**
 - **Plan mode badge — shows whether Claude Code is in plan or normal mode; visible whenever the send back button is active**
 - **Mode switching — click the badge to toggle between plan and normal mode before sending back**
 
