@@ -133,7 +133,7 @@ if not after and req.exists():
         req.write_text("")  # clear so it won't re-trigger on next /df
         if transcript:
             (bridge / "voice-mode-active").write_text("")
-            print(f"\n> {chr(10)+'> '.join(transcript.splitlines())}\n", file=sys.stderr)
+            print('\n> ' + '\n> '.join(transcript.splitlines()) + '\n', file=sys.stderr)
             print(json.dumps({
                 "hookSpecificOutput": {
                     "hookEventName": "UserPromptSubmit",
@@ -171,7 +171,7 @@ if not after:
         else:
             requested_mode, content = parse_mode_request(content)
             extra = mode_context(requested_mode, is_plan)
-            print(f"\n> {chr(10)+'> '.join(content.splitlines())}\n", file=sys.stderr)
+            print('\n> ' + '\n> '.join(content.splitlines()) + '\n', file=sys.stderr)
             print(json.dumps({
                 "hookSpecificOutput": {
                     "hookEventName": "UserPromptSubmit",
@@ -212,7 +212,7 @@ if content is None:
 
 requested_mode, content = parse_mode_request(content)
 extra = mode_context(requested_mode, is_plan)
-print(f"\n> {chr(10)+'> '.join(content.splitlines())}\n", file=sys.stderr)
+print('\n> ' + '\n> '.join(content.splitlines()) + '\n', file=sys.stderr)
 
 print(json.dumps({
     "hookSpecificOutput": {
